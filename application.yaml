@@ -3,7 +3,7 @@ server:
 spring:
   datasource:
     username: root
-    password: pass
+    password: 1Parolef*
     url: jdbc:mysql://localhost:3306/search_engine?useSSL=false&requireSSL=false&allowPublicKeyRetrieval=true
     driver-class-name: com.mysql.cj.jdbc.Driver
   properties:
