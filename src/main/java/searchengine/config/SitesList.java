@@ -14,9 +14,4 @@ import java.util.List;
 @ConfigurationProperties(prefix = "indexing-settings")
 public class SitesList {
     private List<Site> sites;
-//    SitesList(){
-//        sites.add(new Site("https://www.lenta.ru","Лента.ру"));
-//        sites.add(new Site("https://www.skillbox.ru","Skillbox"));
-//        sites.add(new Site("https://www.playback.ru","PlayBack.Ru"));
-//    }
 }

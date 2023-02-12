@@ -3,7 +3,7 @@ package searchengine.model;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "page")
+@Table(name = "page", indexes = {@Index(name = "path_index", columnList="path", unique = true)})
 public class Page {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
