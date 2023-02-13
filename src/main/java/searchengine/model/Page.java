@@ -10,7 +10,7 @@ public class Page {
     @Column(nullable = false, unique = true)
     private Integer Id;
     @ManyToOne
-    @JoinColumn(name = "site_id", referencedColumnName = "id", nullable = false)
+    @JoinColumn(name = "site_id", nullable = false)
     private Site site;
     @Column(columnDefinition = "TEXT", nullable = false)
     private String path;
