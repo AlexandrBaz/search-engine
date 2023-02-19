@@ -1,12 +1,13 @@
 package searchengine.services;
 
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 import searchengine.config.SitesList;
 import searchengine.dto.index.IndexResponse;
-import searchengine.model.IndexRepository;
+import searchengine.model.PageRepository;
+import searchengine.model.SiteRepository;
 import searchengine.model.Site;
 import searchengine.model.Status;
-import searchengine.services.sitehandler.Node;
 import searchengine.services.sitehandler.SiteMapHandler;
 
 import java.time.LocalDateTime;
@@ -15,35 +16,35 @@ import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 
 @Service
+@Scope("prototype")
 public class StartIndexingServiceImpl implements StartIndexingService {
     SitesList sitesList;
-    private final IndexRepository indexRepository;
+    private final SiteRepository siteRepository;
+    private final PageRepository pageRepository;
 
-
-    public StartIndexingServiceImpl(SitesList sitesList, IndexRepository indexRepository) {
+    public StartIndexingServiceImpl(SitesList sitesList, SiteRepository siteRepository, PageRepository pageRepository) {
         this.sitesList = sitesList;
-        this.indexRepository = indexRepository;
+        this.siteRepository = siteRepository;
+        this.pageRepository = pageRepository;
     }
 
     @Override
     public IndexResponse getStart() {
         List<Thread> threadList = new ArrayList<>();
         sitesList.getSites().forEach(site -> {
-            if (createSite(site)) {
+            createSite(site);
                 threadList.add(new Thread(() -> {
-                    Node root = new Node(site.getUrl(), site.getUrl());
                     ForkJoinPool pool = new ForkJoinPool();
-                    SiteMapHandler siteMapHandler = new SiteMapHandler(root, indexRepository);
+                    SiteMapHandler siteMapHandler = new SiteMapHandler(site.getUrl(), siteRepository, pageRepository);
                     pool.invoke(siteMapHandler);
                 }));
-            }
         });
         threadList.forEach(Thread::start);
         return null;
     }
 
-    public boolean createSite(searchengine.config.Site siteToIndex) {
-        boolean siteIsPresent = indexRepository.findByUrl(siteToIndex.getUrl()).isPresent();
+    public void createSite(searchengine.config.Site siteToIndex) {
+        boolean siteIsPresent = siteRepository.findByUrl(siteToIndex.getUrl()).isPresent();
         if (!siteIsPresent) {
             Site addSite = new Site();
             addSite.setName(siteToIndex.getName());
@@ -51,14 +52,9 @@ public class StartIndexingServiceImpl implements StartIndexingService {
             addSite.setStatus(Status.INDEXING);
             addSite.setStatusTime(LocalDateTime.now());
             addSite.setLastError(null);
-            indexRepository.save(addSite);
-            return addToThread();
+            siteRepository.save(addSite);
         }
-        return false;
     }
 
-    public boolean addToThread() {
-        return false;
-    }
 }
-//    Я просто в compute  вызываю ForkJoinWorkerThread.currentThread().interrupt(); Стопорится мгновенно
+//    compute - ForkJoinWorkerThread.currentThread().interrupt();

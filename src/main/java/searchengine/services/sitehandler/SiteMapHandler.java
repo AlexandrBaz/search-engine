@@ -2,90 +2,111 @@ package searchengine.services.sitehandler;
 
 import java.io.IOException;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jsoup.*;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
-import searchengine.model.IndexRepository;
+import org.springframework.context.annotation.Scope;
+import searchengine.model.*;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
+import java.time.LocalDateTime;
+import java.util.*;
 import java.util.concurrent.RecursiveAction;
 
+@Scope("prototype")
 public class SiteMapHandler extends RecursiveAction {
 
-    IndexRepository indexRepository;
-    private final Node node;
-    private static final Set<String> uniqueUrls = new TreeSet<>();
-    private static final Logger logger = LogManager.getLogger(SiteMapHandler.class);
+    private final SiteRepository siteRepository;
+    private final PageRepository pageRepository;
+    private final String urlToParse;
+    private final String domain;
+//    Logger logger = LogManager.getLogger(SiteMapHandler.class);
     private final List<SiteMapHandler> tasks = new ArrayList<>();
 
-    private final String mediaRegex = "(.*/)*.+\\.(png|jpg|gif|bmp|jpeg|PNG|JPG|GIF|BMP|pdf|php|zip)$|[#?]";
+    public SiteMapHandler(String childUrl, SiteRepository siteRepository, PageRepository pageRepository) {
+        this.urlToParse = childUrl;
+        this.domain = urlToParse;
+        this.siteRepository = siteRepository;
+        this.pageRepository = pageRepository;
+    }
 
-    public SiteMapHandler(Node node, IndexRepository indexRepository) {
-        this.node = node;
-        this.indexRepository = indexRepository;
+    public SiteMapHandler(String urlToParse, String domain, SiteRepository siteRepository, PageRepository pageRepository) {
+        this.urlToParse = urlToParse;
+        this.domain = domain;
+        this.siteRepository = siteRepository;
+        this.pageRepository = pageRepository;
     }
 
     @Override
     protected void compute() {
-        List<SiteMapHandler> allTasks = getNewUrlsForTasks();
+        List<SiteMapHandler> allTasks = new ArrayList<>(parseSite());
         invokeAll(allTasks);
     }
 
-    public void ParsePage(String url) {
-        Connection.Response response = null;
+    public List<SiteMapHandler> parseSite() {
+        Connection.Response response;
         try {
-            response = Jsoup.connect(url)
+            response = Jsoup.connect(urlToParse)
                     .userAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.21 (KHTML, like Gecko) Chrome/19.0.1042.0 Safari/535.21")
                     .execute();
+            int urlStatusCode = response.statusCode();
+            String code4xx5xx = "[45]\\d{2}";
+            if (!String.valueOf(urlStatusCode).matches(code4xx5xx)) {
+                getOnPageUrls(response);
+            }
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
+//            logger.error(e);
         }
-        getUrlStatus(response);
+        return tasks;
     }
 
-    public int getUrlStatus(Connection.Response response) {
-        return response.statusCode();
-    }
-
-    public List<String> getOnPageUrls(Connection.Response response) {
-        String domain = node.getDomain();
-        List<String> onPageUrls = new ArrayList<>();
+    public void getOnPageUrls(Connection.Response response) {
         try {
             Thread.sleep(300);
             Document doc = response.parse();
             Elements elements = doc.select("a[href]");
             elements.stream().map((link) -> link.attr("abs:href")).forEachOrdered((childUrl) -> {
-                if (childUrl.contains(domain) && childUrl.endsWith("/")) { //!isUniqueUrl(childUrl) &&
-                    if (urlNoMedia(childUrl)) {
-                        synchronized (uniqueUrls) {
-                            uniqueUrls.add(childUrl);
-                        }
-                        Node child = new Node(childUrl, domain);
-                        SiteMapHandler siteMapCrawler = new SiteMapHandler(child, indexRepository);
-                        siteMapCrawler.fork();
-                        tasks.add(siteMapCrawler);
-                        System.out.println("in progress");
+                synchronized (pageRepository) {
+                    addUrlToTable(childUrl, response, doc);
                     }
-                }
+                    SiteMapHandler siteMapHandler = new SiteMapHandler(childUrl, domain, siteRepository, pageRepository);
+                    siteMapHandler.fork();
+                    tasks.add(siteMapHandler);
+                    System.out.println("in progress");
             });
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
-            logger.error(e);
+//            logger.error(e);
         }
-        return onPageUrls;
     }
 
-    public boolean urlNoMedia(String url){
-        return !url.matches(mediaRegex) && url.contains(node.getDomain());
+    public void addUrlToTable(String childUrl, Connection.Response response, Document doc) {
+        String path = urlToParse.replaceFirst(domain, "/");
+        Site siteInTable = siteRepository.findByUrl(domain).orElse(null);
+        if (urlIsValid(childUrl, domain) && !urlIsUnique(path, siteInTable)) {
+            assert siteInTable != null;
+            Site site = modifySite(siteInTable);
+            Page page = new Page();
+            page.setCode(response.statusCode());
+            page.setPath(path);
+            page.setContent(doc.toString());
+            page.setSite(site);
+            pageRepository.save(page);
+        }
     }
 
-    public boolean urlIsValid(String url){
-
+    public boolean urlIsValid(String url, String domain) {
+        String mediaRegex = "(.*/)*.+\\.(png|jpg|gif|bmp|jpeg|PNG|JPG|GIF|BMP|pdf|php|zip)$|[#?]";
+        return !url.matches(mediaRegex) && url.contains(domain) && (url.endsWith("/") || url.endsWith("html"));
     }
 
+    public boolean urlIsUnique(String path, Site siteInTable) {
+        return pageRepository.findByPathAndSite(path, siteInTable).isPresent();
+    }
+
+    public Site modifySite(Site siteInTable) {
+        siteInTable.setStatusTime(LocalDateTime.now());
+        siteRepository.save(siteInTable);
+        return siteInTable;
+    }
 }
