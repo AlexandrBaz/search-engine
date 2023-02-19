@@ -19,15 +19,8 @@ public class SiteMapHandler extends RecursiveAction {
     private final PageRepository pageRepository;
     private final String urlToParse;
     private final String domain;
-//    Logger logger = LogManager.getLogger(SiteMapHandler.class);
+    //    Logger logger = LogManager.getLogger(SiteMapHandler.class);
     private final List<SiteMapHandler> tasks = new ArrayList<>();
-
-    public SiteMapHandler(String childUrl, SiteRepository siteRepository, PageRepository pageRepository) {
-        this.urlToParse = childUrl;
-        this.domain = urlToParse;
-        this.siteRepository = siteRepository;
-        this.pageRepository = pageRepository;
-    }
 
     public SiteMapHandler(String urlToParse, String domain, SiteRepository siteRepository, PageRepository pageRepository) {
         this.urlToParse = urlToParse;
@@ -66,12 +59,16 @@ public class SiteMapHandler extends RecursiveAction {
             Document doc = response.parse();
             Elements elements = doc.select("a[href]");
             elements.stream().map((link) -> link.attr("abs:href")).forEachOrdered((childUrl) -> {
+                String path = urlToParse.replaceFirst(domain, "/");
+                Site siteInTable = siteRepository.findByUrl(domain).orElse(null);
                 synchronized (pageRepository) {
-                    addUrlToTable(childUrl, response, doc);
+                    if (urlIsValid(childUrl, domain) && !urlIsUnique(path, siteInTable)) {
+                        addUrlToTable(response, doc, path, siteInTable);
                     }
                     SiteMapHandler siteMapHandler = new SiteMapHandler(childUrl, domain, siteRepository, pageRepository);
                     siteMapHandler.fork();
                     tasks.add(siteMapHandler);
+                }
             });
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
@@ -79,19 +76,15 @@ public class SiteMapHandler extends RecursiveAction {
         }
     }
 
-    public void addUrlToTable(String childUrl, Connection.Response response, Document doc) {
-        String path = urlToParse.replaceFirst(domain, "/");
-        Site siteInTable = siteRepository.findByUrl(domain).orElse(null);
-        if (urlIsValid(childUrl, domain) && !urlIsUnique(path, siteInTable)) {
-            assert siteInTable != null;
-            Site site = modifySite(siteInTable);
-            Page page = new Page();
-            page.setCode(response.statusCode());
-            page.setPath(path);
-            page.setContent(doc.toString());
-            page.setSite(site);
-            pageRepository.save(page);
-        }
+    public void addUrlToTable(Connection.Response response, Document doc, String path, Site siteInTable) {
+        assert siteInTable != null;
+        Site site = modifySite(siteInTable);
+        Page page = new Page();
+        page.setCode(response.statusCode());
+        page.setPath(path);
+        page.setContent(doc.toString());
+        page.setSite(site);
+        pageRepository.save(page);
     }
 
     public boolean urlIsValid(String url, String domain) {

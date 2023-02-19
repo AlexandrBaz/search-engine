@@ -34,7 +34,7 @@ public class StartIndexingServiceImpl implements StartIndexingService {
             createSite(site);
                 threadList.add(new Thread(() -> {
                     ForkJoinPool pool = new ForkJoinPool();
-                    SiteMapHandler siteMapHandler = new SiteMapHandler(site.getUrl(), siteRepository, pageRepository);
+                    SiteMapHandler siteMapHandler = new SiteMapHandler(site.getUrl(), site.getUrl(), siteRepository, pageRepository);
                     pool.invoke(siteMapHandler);
                 }));
         });
