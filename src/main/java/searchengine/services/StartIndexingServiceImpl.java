@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 
 @Service
-@Scope("prototype")
 public class StartIndexingServiceImpl implements StartIndexingService {
     SitesList sitesList;
     private final SiteRepository siteRepository;

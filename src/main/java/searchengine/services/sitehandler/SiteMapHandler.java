@@ -72,7 +72,6 @@ public class SiteMapHandler extends RecursiveAction {
                     SiteMapHandler siteMapHandler = new SiteMapHandler(childUrl, domain, siteRepository, pageRepository);
                     siteMapHandler.fork();
                     tasks.add(siteMapHandler);
-                    System.out.println("in progress");
             });
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
