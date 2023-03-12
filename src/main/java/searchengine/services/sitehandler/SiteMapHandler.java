@@ -5,33 +5,38 @@ import java.io.IOException;
 import org.jsoup.*;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
-import org.springframework.context.annotation.Scope;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+import searchengine.config.SitesList;
 import searchengine.model.*;
 
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.RecursiveAction;
 
-@Scope("prototype")
 public class SiteMapHandler extends RecursiveAction {
 
     private final SiteRepository siteRepository;
     private final PageRepository pageRepository;
+    private final SitesList sitesList;
     private final String urlToParse;
     private final String domain;
     //    Logger logger = LogManager.getLogger(SiteMapHandler.class);
     private final List<SiteMapHandler> tasks = new ArrayList<>();
+    private static final Set<String> visitUrl = new TreeSet<>();
 
-    public SiteMapHandler(String urlToParse, String domain, SiteRepository siteRepository, PageRepository pageRepository) {
+
+    public SiteMapHandler(String urlToParse, String domain, SiteRepository siteRepository, PageRepository pageRepository, SitesList sitesList) {
         this.urlToParse = urlToParse;
         this.domain = domain;
         this.siteRepository = siteRepository;
         this.pageRepository = pageRepository;
+        this.sitesList = sitesList;
     }
 
     @Override
     protected void compute() {
-        List<SiteMapHandler> allTasks = new ArrayList<>(parseSite());
+        List<SiteMapHandler> allTasks = parseSite();
         invokeAll(allTasks);
     }
 
@@ -39,48 +44,51 @@ public class SiteMapHandler extends RecursiveAction {
         Connection.Response response;
         try {
             response = Jsoup.connect(urlToParse)
-                    .userAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.21 (KHTML, like Gecko) Chrome/19.0.1042.0 Safari/535.21")
+                    .userAgent(sitesList.getUserAgent())
+                    .referrer(sitesList.getReferrer())
                     .execute();
             int urlStatusCode = response.statusCode();
             String code4xx5xx = "[45]\\d{2}";
             if (!String.valueOf(urlStatusCode).matches(code4xx5xx)) {
-                getOnPageUrls(response);
+                getOnPageUrls(response, urlStatusCode);
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (IOException error) {
+            error.printStackTrace();
 //            logger.error(e);
+            setParseError(getSiteFromTable(), error.toString());
         }
         return tasks;
     }
 
-    public void getOnPageUrls(Connection.Response response) {
+    public void getOnPageUrls(Connection.Response response, int urlStatusCode) {
         try {
             Thread.sleep(300);
             Document doc = response.parse();
             Elements elements = doc.select("a[href]");
             elements.stream().map((link) -> link.attr("abs:href")).forEachOrdered((childUrl) -> {
-                String path = urlToParse.replaceFirst(domain, "/");
-                Site siteInTable = siteRepository.findByUrl(domain).orElse(null);
-                synchronized (pageRepository) {
-                    if (urlIsValid(childUrl, domain) && !urlIsUnique(path, siteInTable)) {
-                        addUrlToTable(response, doc, path, siteInTable);
+                synchronized (visitUrl) {
+                    String path = childUrl.replaceFirst(domain, "/");
+                    if (urlIsValid(childUrl, domain) && !urlIsUnique(path)) {
+                        addUrlToTable(urlStatusCode, doc, path);
+                        visitUrl.add(childUrl);
+                        System.out.println("Size - " + visitUrl.size());
+                        SiteMapHandler siteMapHandler = new SiteMapHandler(childUrl, domain, siteRepository, pageRepository,sitesList);
+                        siteMapHandler.fork();
+                        tasks.add(siteMapHandler);
                     }
-                    SiteMapHandler siteMapHandler = new SiteMapHandler(childUrl, domain, siteRepository, pageRepository);
-                    siteMapHandler.fork();
-                    tasks.add(siteMapHandler);
                 }
             });
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
+        } catch (IOException | InterruptedException error) {
+            error.printStackTrace();
+            setParseError(getSiteFromTable(), error.toString());
 //            logger.error(e);
         }
     }
 
-    public void addUrlToTable(Connection.Response response, Document doc, String path, Site siteInTable) {
-        assert siteInTable != null;
-        Site site = modifySite(siteInTable);
+    public void addUrlToTable(int urlStatusCode, Document doc, String path) {
+        Site site = modifySite();
         Page page = new Page();
-        page.setCode(response.statusCode());
+        page.setCode(urlStatusCode);
         page.setPath(path);
         page.setContent(doc.toString());
         page.setSite(site);
@@ -92,13 +100,24 @@ public class SiteMapHandler extends RecursiveAction {
         return !url.matches(mediaRegex) && url.contains(domain) && (url.endsWith("/") || url.endsWith("html"));
     }
 
-    public boolean urlIsUnique(String path, Site siteInTable) {
-        return pageRepository.findByPathAndSite(path, siteInTable).isPresent();
+    public boolean urlIsUnique(String path) {
+        return pageRepository.findByPathAndSite(path, getSiteFromTable()).isPresent();
     }
 
-    public Site modifySite(Site siteInTable) {
-        siteInTable.setStatusTime(LocalDateTime.now());
-        siteRepository.save(siteInTable);
-        return siteInTable;
+    public Site modifySite() {
+        Site modifyedSite = getSiteFromTable();
+        modifyedSite.setStatusTime(LocalDateTime.now());
+        siteRepository.save(modifyedSite);
+        return modifyedSite;
+    }
+
+    public void setParseError(Site getSiteFromTable, String error) {
+        getSiteFromTable.setStatusTime(LocalDateTime.now());
+        getSiteFromTable.setLastError(error);
+        siteRepository.save(getSiteFromTable);
+    }
+
+    private Site getSiteFromTable() {
+        return siteRepository.findByUrl(domain).orElse(null);
     }
 }

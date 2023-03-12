@@ -2,11 +2,9 @@ package searchengine.controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import searchengine.dto.index.IndexResponse;
+import searchengine.dto.index.TrueResponse;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.services.StartIndexingService;
 import searchengine.services.StatisticsService;
@@ -36,8 +34,13 @@ public class ApiController {
         return ResponseEntity.ok(startIndexingService.getStart());
     }
 
-//    @GetMapping(value = "/{id}", produces = APPLICATION_JSON_VALUE)
-//    public ToDoResponse findById(@PathVariable Integer id) {
-//        return toDoService.findById(id);
-//    }
+    @GetMapping("/stopIndexing")
+    public ResponseEntity<TrueResponse> stopIndexing(){
+        return ResponseEntity.ok(startIndexingService.stopIndexing());
+    }
+
+    @PostMapping("/indexPage")
+    public ResponseEntity<Boolean> indexPage(){
+        return ResponseEntity.ok(startIndexingService.indexPage());
+    }
 }

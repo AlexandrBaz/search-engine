@@ -1,9 +1,9 @@
 package searchengine.services;
 
-import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 import searchengine.config.SitesList;
 import searchengine.dto.index.IndexResponse;
+import searchengine.dto.index.TrueResponse;
 import searchengine.model.PageRepository;
 import searchengine.model.SiteRepository;
 import searchengine.model.Site;
@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
+
 
 @Service
 public class StartIndexingServiceImpl implements StartIndexingService {
@@ -34,11 +35,21 @@ public class StartIndexingServiceImpl implements StartIndexingService {
             createSite(site);
                 threadList.add(new Thread(() -> {
                     ForkJoinPool pool = new ForkJoinPool();
-                    SiteMapHandler siteMapHandler = new SiteMapHandler(site.getUrl(), site.getUrl(), siteRepository, pageRepository);
+                    SiteMapHandler siteMapHandler = new SiteMapHandler(site.getUrl(), site.getUrl(), siteRepository, pageRepository, sitesList);
                     pool.invoke(siteMapHandler);
                 }));
         });
         threadList.forEach(Thread::start);
+        return null;
+    }
+
+    @Override
+    public TrueResponse stopIndexing() {
+        return null;
+    }
+
+    @Override
+    public Boolean indexPage() {
         return null;
     }
 
@@ -54,6 +65,7 @@ public class StartIndexingServiceImpl implements StartIndexingService {
             siteRepository.save(addSite);
         }
     }
+
 
 }
 //    compute - ForkJoinWorkerThread.currentThread().interrupt();
