@@ -23,8 +23,6 @@ public class SiteMapHandler extends RecursiveAction {
     private final String domain;
     //    Logger logger = LogManager.getLogger(SiteMapHandler.class);
     private final List<SiteMapHandler> tasks = new ArrayList<>();
-    private static final Set<String> visitUrl = new TreeSet<>();
-
 
     public SiteMapHandler(String urlToParse, String domain, SiteRepository siteRepository, PageRepository pageRepository, SitesList sitesList) {
         this.urlToParse = urlToParse;
@@ -66,12 +64,10 @@ public class SiteMapHandler extends RecursiveAction {
             Document doc = response.parse();
             Elements elements = doc.select("a[href]");
             elements.stream().map((link) -> link.attr("abs:href")).forEachOrdered((childUrl) -> {
-                synchronized (visitUrl) {
+                synchronized (pageRepository) {
                     String path = childUrl.replaceFirst(domain, "/");
                     if (urlIsValid(childUrl, domain) && !urlIsUnique(path)) {
                         addUrlToTable(urlStatusCode, doc, path);
-                        visitUrl.add(childUrl);
-                        System.out.println("Size - " + visitUrl.size());
                         SiteMapHandler siteMapHandler = new SiteMapHandler(childUrl, domain, siteRepository, pageRepository,sitesList);
                         siteMapHandler.fork();
                         tasks.add(siteMapHandler);

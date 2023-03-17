@@ -1,0 +1,26 @@
+server:
+  port: 8080
+spring:
+  datasource:
+    username: root
+    password: 1Parolef*
+    url: jdbc:mysql://localhost:3306/search_engine?useSSL=false&requireSSL=false&allowPublicKeyRetrieval=true
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+userAgent: Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:25.0) Gecko/20100101 Firefox/25.0
+referrer: https://www:google:com
+
+indexing-settings:
+  sites:
+    - url: https://nikoartgallery.com/
+      name: nikoartgallery.com
+#    - url: https://et-cetera.ru/mobile/
+#      name: et-cetera.ru
+#    - url: https://www.playback.ru
+#      name: PlayBack.Ru

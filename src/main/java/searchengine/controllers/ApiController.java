@@ -31,11 +31,11 @@ public class ApiController {
 
     @GetMapping("/startIndexing")
     public ResponseEntity<IndexResponse> startIndexing(){
-        return ResponseEntity.ok(startIndexingService.getStart());
+        return ResponseEntity.ok(startIndexingService.startIndexing());
     }
 
     @GetMapping("/stopIndexing")
-    public ResponseEntity<TrueResponse> stopIndexing(){
+    public ResponseEntity<Boolean> stopIndexing(){
         return ResponseEntity.ok(startIndexingService.stopIndexing());
     }
 

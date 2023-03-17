@@ -4,8 +4,8 @@ import searchengine.dto.index.IndexResponse;
 import searchengine.dto.index.TrueResponse;
 
 public interface StartIndexingService {
-    IndexResponse getStart();
-    TrueResponse stopIndexing();
+    IndexResponse startIndexing();
+    Boolean stopIndexing();
     Boolean indexPage();
 
 }
