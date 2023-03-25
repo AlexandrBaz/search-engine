@@ -9,14 +9,14 @@ import javax.persistence.*;
 @Getter
 @Setter
 @Table(name = "page", indexes = {@Index(name = "path_index", columnList="path", unique = true)})
-public class Page {
+public class PageEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(nullable = false, unique = true)
     private Integer Id;
     @ManyToOne
     @JoinColumn(name = "site_id", nullable = false)
-    private Site site;
+    SiteEntity site;
     @Column(columnDefinition = "TEXT", nullable = false)
     private String path;
     @Column(columnDefinition = "INT", nullable = false)

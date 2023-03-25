@@ -5,7 +5,6 @@ import java.io.IOException;
 import org.jsoup.*;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 import searchengine.config.SitesList;
 import searchengine.model.*;
@@ -13,7 +12,9 @@ import searchengine.model.*;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.RecursiveAction;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+@Component
 public class SiteMapHandler extends RecursiveAction {
 
     private final SiteRepository siteRepository;
@@ -21,12 +22,13 @@ public class SiteMapHandler extends RecursiveAction {
     private final SitesList sitesList;
     private final String urlToParse;
     private final String domain;
+    private AtomicBoolean running = new AtomicBoolean(false);
     //    Logger logger = LogManager.getLogger(SiteMapHandler.class);
     private final List<SiteMapHandler> tasks = new ArrayList<>();
 
-    public SiteMapHandler(String urlToParse, String domain, SiteRepository siteRepository, PageRepository pageRepository, SitesList sitesList) {
-        this.urlToParse = urlToParse;
-        this.domain = domain;
+    public SiteMapHandler(SiteToCrawl siteToCrawl, SiteRepository siteRepository, PageRepository pageRepository, SitesList sitesList) {
+        this.urlToParse = siteToCrawl.getUrlToCrawl();
+        this.domain = siteToCrawl.getDomain();
         this.siteRepository = siteRepository;
         this.pageRepository = pageRepository;
         this.sitesList = sitesList;
@@ -34,6 +36,7 @@ public class SiteMapHandler extends RecursiveAction {
 
     @Override
     protected void compute() {
+        running.set(true);
         List<SiteMapHandler> allTasks = parseSite();
         invokeAll(allTasks);
     }
@@ -68,7 +71,10 @@ public class SiteMapHandler extends RecursiveAction {
                     String path = childUrl.replaceFirst(domain, "/");
                     if (urlIsValid(childUrl, domain) && !urlIsUnique(path)) {
                         addUrlToTable(urlStatusCode, doc, path);
-                        SiteMapHandler siteMapHandler = new SiteMapHandler(childUrl, domain, siteRepository, pageRepository,sitesList);
+                        SiteToCrawl siteToCrawl = new SiteToCrawl();
+                        siteToCrawl.setUrlToCrawl(childUrl);
+                        siteToCrawl.setDomain(domain);
+                        SiteMapHandler siteMapHandler = new SiteMapHandler(siteToCrawl, siteRepository, pageRepository,sitesList);
                         siteMapHandler.fork();
                         tasks.add(siteMapHandler);
                     }
@@ -82,13 +88,13 @@ public class SiteMapHandler extends RecursiveAction {
     }
 
     public void addUrlToTable(int urlStatusCode, Document doc, String path) {
-        Site site = modifySite();
-        Page page = new Page();
-        page.setCode(urlStatusCode);
-        page.setPath(path);
-        page.setContent(doc.toString());
-        page.setSite(site);
-        pageRepository.save(page);
+        SiteEntity siteEntity = modifySite();
+        PageEntity pageEntity = new PageEntity();
+        pageEntity.setCode(urlStatusCode);
+        pageEntity.setPath(path);
+        pageEntity.setContent(doc.toString());
+        pageEntity.setSite(siteEntity);
+        pageRepository.save(pageEntity);
     }
 
     public boolean urlIsValid(String url, String domain) {
@@ -100,20 +106,20 @@ public class SiteMapHandler extends RecursiveAction {
         return pageRepository.findByPathAndSite(path, getSiteFromTable()).isPresent();
     }
 
-    public Site modifySite() {
-        Site modifyedSite = getSiteFromTable();
+    public SiteEntity modifySite() {
+        SiteEntity modifyedSite = getSiteFromTable();
         modifyedSite.setStatusTime(LocalDateTime.now());
         siteRepository.save(modifyedSite);
         return modifyedSite;
     }
 
-    public void setParseError(Site getSiteFromTable, String error) {
+    public void setParseError(SiteEntity getSiteFromTable, String error) {
         getSiteFromTable.setStatusTime(LocalDateTime.now());
         getSiteFromTable.setLastError(error);
         siteRepository.save(getSiteFromTable);
     }
 
-    private Site getSiteFromTable() {
+    private SiteEntity getSiteFromTable() {
         return siteRepository.findByUrl(domain).orElse(null);
     }
 }

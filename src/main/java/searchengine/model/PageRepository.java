@@ -4,7 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
-public interface PageRepository extends JpaRepository<Page, Long> {
+public interface PageRepository extends JpaRepository<PageEntity, Long> {
 
-    Optional<Page> findByPathAndSite(String path, Site site);
+    Optional<PageEntity> findByPathAndSite(String path, SiteEntity site);
 }

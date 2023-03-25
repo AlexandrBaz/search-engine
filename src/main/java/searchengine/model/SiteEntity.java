@@ -13,7 +13,7 @@ import java.util.List;
 @Table(name = "site")
 @Getter
 @Setter
-public class Site extends searchengine.config.Site {
+public class SiteEntity  {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "site_id",nullable = false, unique = true)
@@ -30,17 +30,17 @@ public class Site extends searchengine.config.Site {
     @Column(columnDefinition = "varchar(255)", nullable = false, unique = true)
     private String name;
 
-    @OneToMany(mappedBy = "site", cascade = CascadeType.ALL,
+    @OneToMany(mappedBy = "site", cascade = CascadeType.ALL, targetEntity = PageEntity.class,
             orphanRemoval = true)
-    private List<Page> pages = new ArrayList<>();
+    private List<PageEntity> pageEntities = new ArrayList<>();
 
-    public void addPage(Page page) {
-        pages.add(page);
-        page.setSite(this);
+    public void addPage(PageEntity pageEntity) {
+        pageEntities.add(pageEntity);
+        pageEntity.setSite(this);
     }
 
-    public void removePage(Page page) {
-        pages.remove(page);
-        page.setSite(null);
+    public void removePage(PageEntity pageEntity) {
+        pageEntities.remove(pageEntity);
+        pageEntity.setSite(null);
     }
 }
