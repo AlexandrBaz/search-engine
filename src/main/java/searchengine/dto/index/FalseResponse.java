@@ -1,9 +1,11 @@
 package searchengine.dto.index;
 
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Value;
 
-@Data
-public class FalseResponse {
+@EqualsAndHashCode(callSuper = true)
+@Value
+public class FalseResponse extends Response {
     boolean result;
     String error;
 }

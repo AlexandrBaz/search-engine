@@ -3,25 +3,25 @@ package searchengine.controllers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import searchengine.dto.index.IndexResponse;
+import searchengine.dto.index.FalseResponse;
+import searchengine.dto.index.Response;
 import searchengine.dto.index.TrueResponse;
 import searchengine.dto.statistics.StatisticsResponse;
-import searchengine.services.StartIndexingService;
+import searchengine.services.IndexService;
 import searchengine.services.StatisticsService;
-
-import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 @RestController
 @RequestMapping("/api")
 public class ApiController {
 
     private final StatisticsService statisticsService;
-    private final StartIndexingService startIndexingService;
+    private final IndexService indexService;
+    private Response response;
 
     @Autowired
-    public ApiController(StatisticsService statisticsService, StartIndexingService startIndexingService) {
+    public ApiController(StatisticsService statisticsService, IndexService indexService) {
         this.statisticsService = statisticsService;
-        this.startIndexingService = startIndexingService;
+        this.indexService = indexService;
     }
 
     @GetMapping("/statistics")
@@ -30,17 +30,30 @@ public class ApiController {
     }
 
     @GetMapping("/startIndexing")
-    public ResponseEntity<IndexResponse> startIndexing(){
-        return ResponseEntity.ok(startIndexingService.startIndexing());
+    public Response startIndexing(){
+        if (indexService.startIndexing()){
+            response = new TrueResponse(true);
+        } else {
+            response = new FalseResponse(false, "Индексация уже запущена");
+        }
+        return response;
     }
 
     @GetMapping("/stopIndexing")
-    public ResponseEntity<Boolean> stopIndexing(){
-        return ResponseEntity.ok(startIndexingService.stopIndexing());
+    public Response stopIndexing(){
+        if (indexService.stopIndexing()){
+            response = new TrueResponse(true);
+        } else response = new FalseResponse(false, "Индексация не запущена");
+        return response;
     }
 
     @PostMapping("/indexPage")
-    public ResponseEntity<Boolean> indexPage(){
-        return ResponseEntity.ok(startIndexingService.indexPage());
+    public Response indexPage(@RequestParam (name="url") String url){
+        if(indexService.indexPage(url)){
+            response = new TrueResponse(true);
+        } else {
+            response = new FalseResponse(false,"Данная страница находится за пределами сайтов, указанных в конфигурационном файле");
+        }
+        return response;
     }
 }

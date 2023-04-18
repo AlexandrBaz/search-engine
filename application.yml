@@ -18,9 +18,10 @@ referrer: https://www:google:com
 
 indexing-settings:
   sites:
-    - url: https://nikoartgallery.com/
-      name: nikoartgallery.com
-#    - url: https://et-cetera.ru/mobile/
-#      name: et-cetera.ru
-#    - url: https://www.playback.ru
-#      name: PlayBack.Ru
+
+    - url: https://et-cetera.ru/mobile/
+      name: et-cetera.ru
+    - url: https://www.cialef.com/
+      name: https://www.cialef.com/
+#    - url: https://nikoartgallery.com/
+#      name: https://nikoartgallery.com/
