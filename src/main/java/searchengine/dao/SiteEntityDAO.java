@@ -1,16 +1,17 @@
-package searchengine.services;
+package searchengine.dao;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.SiteEntity;
-import searchengine.model.SiteRepository;
 import searchengine.model.Status;
 
 import java.time.LocalDateTime;
 
 @Component
 @Scope("prototype")
+@Transactional
 public class SiteEntityDAO {
 
     public SiteRepository siteRepository;
@@ -24,20 +25,20 @@ public class SiteEntityDAO {
             addSite.setStatus(Status.INDEXING);
             addSite.setStatusTime(LocalDateTime.now());
             addSite.setLastError(null);
-            siteRepository.save(addSite);
+            siteRepository.saveAndFlush(addSite);
         }
     }
     public SiteEntity modifySite(String domain) {
         SiteEntity modifySite = getSiteEntity(domain);
         modifySite.setStatusTime(LocalDateTime.now());
-        siteRepository.save(modifySite);
+        siteRepository.saveAndFlush(modifySite);
         return modifySite;
     }
 
     public void setParseError(SiteEntity getSiteFromTable, String error) { //TODO May be needed in future
         getSiteFromTable.setStatusTime(LocalDateTime.now());
         getSiteFromTable.setLastError(error);
-        siteRepository.save(getSiteFromTable);
+        siteRepository.saveAndFlush(getSiteFromTable);
     }
 
     public SiteEntity getSiteEntity(String domain) {
@@ -50,7 +51,7 @@ public class SiteEntityDAO {
         siteEntity.setLastError("Индексация остановлена пользователем");
         siteEntity.setStatusTime(LocalDateTime.now());
         siteEntity.setStatus(Status.FAILED);
-        siteRepository.save(siteEntity);
+        siteRepository.saveAndFlush(siteEntity);
     }
 
     public void indexComplete(String url) {
@@ -59,7 +60,7 @@ public class SiteEntityDAO {
             siteEntity.setStatus(Status.INDEXED);
             siteEntity.setLastError(null);
             siteEntity.setStatusTime(LocalDateTime.now());
-            siteRepository.save(siteEntity);
+            siteRepository.saveAndFlush(siteEntity);
         }
     }
     @Autowired

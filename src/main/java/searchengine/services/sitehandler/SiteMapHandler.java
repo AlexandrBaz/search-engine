@@ -1,102 +1,138 @@
 package searchengine.services.sitehandler;
 
-import java.io.IOException;
-
-import org.jsoup.*;
+import org.jsoup.Connection;
+import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import searchengine.config.SitesList;
-import searchengine.services.PageEntityDAO;
-import searchengine.services.SiteEntityDAO;
+import searchengine.dao.AllEntityDAO;
+import searchengine.dao.PageEntityDAO;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.RecursiveAction;
 
 @Component
-
 public class SiteMapHandler extends RecursiveAction {
-    private final SitesList sitesList;
-    private final String urlToParse;
-    private final String domain;
-
-    private final SiteEntityDAO siteEntityDAO;
     private final PageEntityDAO pageEntityDAO;
+    private final AllEntityDAO allEntityDAO;
 
-    //    Logger logger = LogManager.getLogger(SiteMapHandler.class);
+    private String domain;
+    private String nextUrlToParse;
+    private ParsedPage parsedPage;
     private final List<SiteMapHandler> tasks = new ArrayList<>();
 
-    public SiteMapHandler(SiteToCrawl siteToCrawl, SitesList sitesList, SiteEntityDAO siteEntityDAO, PageEntityDAO pageEntityDAO) {
-        this.urlToParse = siteToCrawl.getUrlToCrawl();
-        this.domain = siteToCrawl.getDomain();
-        this.sitesList = sitesList;
-        this.siteEntityDAO = siteEntityDAO;
-        this.pageEntityDAO = pageEntityDAO;
+    private static final Set<String> uniqueUrls = Collections.synchronizedSet(new HashSet<>());
+
+    //    Logger logger = LogManager.getLogger(SiteMapHandler.class);
+
+    public SiteMapHandler(String domain, String nextUrlToParse, AllEntityDAO allEntityDAO) {
+        this.domain = domain;
+        this.nextUrlToParse = nextUrlToParse;
+        this.allEntityDAO = allEntityDAO;
+        this.pageEntityDAO = allEntityDAO.getPageEntityDAO();
+
+    }
+
+    @Autowired
+    public SiteMapHandler(ParsedPage parsedPage, AllEntityDAO allEntityDAO) {
+        this.parsedPage = parsedPage;
+        this.allEntityDAO = allEntityDAO;
+        this.pageEntityDAO = allEntityDAO.getPageEntityDAO();
+        this.domain = parsedPage.getDomain();
+        this.nextUrlToParse = parsedPage.getDomain();
     }
 
     @Override
-    protected void compute(){
+    protected void compute() {
         if (!Thread.currentThread().isInterrupted()) {
-            List<SiteMapHandler> allTasks = parseSite();
+            List<SiteMapHandler> allTasks = getTasks();
             invokeAll(allTasks);
         } else {
             System.out.println("shutdown");
         }
     }
 
-    public List<SiteMapHandler> parseSite() {
+    public List<SiteMapHandler> getTasks() {
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+            ////            setParseError(getSiteFromTable(), error.toString());
+        }
         Connection.Response response;
         try {
-            response = Jsoup.connect(urlToParse)
-                    .userAgent(sitesList.getUserAgent())
-                    .referrer(sitesList.getReferrer())
+            response = Jsoup.connect(nextUrlToParse)
+                    .userAgent("Mozilla/5.0 (Windows; U; Windows NT 6.1; ru-RU) AppleWebKit/534.16 (KHTML, like Gecko) Chrome/10.0.648.11 Safari/534.16")
+//                    .referrer("https://www:google.com")
+                    .timeout(10000)
+                    .ignoreHttpErrors(true)
+                    .followRedirects(false)
                     .execute();
-            int urlStatusCode = response.statusCode();
-            String code4xx5xx = "[45]\\d{2}";
-            if (!String.valueOf(urlStatusCode).matches(code4xx5xx)) {
-                getOnPageUrls(response, urlStatusCode);
-            }
-        } catch (IOException error) {
-            Thread.currentThread().interrupt();
-            error.printStackTrace();
-//            logger.error(e);
-//            setParseError(getSiteFromTable(), error.toString());
-        }
-        return tasks;
-    }
+            Document document = response.parse();
+            Elements elements = document.select("a[href]");
 
-    public void getOnPageUrls(Connection.Response response, int urlStatusCode) {
 
-        try {
-            Thread.sleep(300);
-        } catch (InterruptedException error) {
-            Thread.currentThread().interrupt();
-            error.printStackTrace();
-//            setParseError(getSiteFromTable(), error.toString());
-//            logger.error(e);
-        }
-        try {
-            Document doc = response.parse();
-            Elements elements = doc.select("a[href]");
             elements.stream().map((link) -> link.attr("abs:href")).forEachOrdered((childUrl) -> {
-                String path = childUrl.replaceFirst(domain, "/");
-                if (urlIsValid(childUrl, domain) && !pageEntityDAO.urlIsUnique(path, domain)) {
-                    pageEntityDAO.addUrlToTable(urlStatusCode, doc, path, domain);
-                    SiteToCrawl siteToCrawl = new SiteToCrawl();
-                    siteToCrawl.setUrlToCrawl(childUrl);
-                    siteToCrawl.setDomain(domain);
-                    SiteMapHandler siteMapHandler = new SiteMapHandler(siteToCrawl, sitesList, siteEntityDAO, pageEntityDAO);
+                if (checkUrlFromParsedPage(childUrl, domain)) {
+                    SiteMapHandler siteMapHandler = new SiteMapHandler(domain, childUrl, allEntityDAO);
                     siteMapHandler.fork();
+                    ParsedPage page = new ParsedPage();
+                    page.setDocument(document);
+                    page.setPageStatusCode(response.statusCode());
+                    page.setPath(childUrl.replaceAll(domain, "/"));
+                    page.setDomain(domain);
+                    page.setUrlToParse(childUrl);
+                    pageEntityDAO.addUrlToTable(page);
                     tasks.add(siteMapHandler);
                 }
             });
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        return tasks;
     }
 
-    public boolean urlIsValid(String url, String domain) {
-        String mediaRegex = "(.*/)*.+\\.(png|jpg|gif|bmp|jpeg|PNG|JPG|GIF|BMP|pdf|php|zip)$|[#?]";
-        return !url.matches(mediaRegex) && url.contains(domain) && (url.endsWith("/") || url.endsWith("html"));
+    private Boolean checkUrlBeforeParse(String url) {
+        return !uniqueUrls.contains(url);
+    }
+
+    private synchronized Boolean checkUrlFromParsedPage(String url, String domain) {
+        if (urlIsValid(url, domain) && checkUrlBeforeParse(url)) {
+            uniqueUrls.add(url);
+            System.out.println(uniqueUrls.size() + " add -> " + url + " " + Thread.currentThread().getName());
+            return true;
+        }
+        return false;
+    }
+
+    private synchronized ParsedPage createNewParsedPage(String url, ParsedPage currentPage) {
+        ParsedPage newPage = new ParsedPage();
+        newPage.setDomain(currentPage.getDomain());
+        newPage.setUrlToParse(url);
+        newPage = new JsoupParser().getDocument(newPage);
+        pageEntityDAO.addUrlToTable(newPage);
+        System.out.println("write to DB -> " + newPage.getPath() + " " + newPage.getUrlToParse());
+        return newPage;
+    }
+
+    private boolean urlIsValid(String url, String domain) {
+        String mediaRegex = "(.*/)*.+\\.(png|jpg|gif|bmp|jpeg|PNG|JPG|GIF|BMP|pdf|php|zip)$|[?|#]";
+        return !url.matches(mediaRegex)
+                && url.contains(domain)
+                && (url.endsWith("/")
+                || url.endsWith("html"));
+    }
+
+    private void threadSleep() {
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+            ////            setParseError(getSiteFromTable(), error.toString());
+        }
     }
 }

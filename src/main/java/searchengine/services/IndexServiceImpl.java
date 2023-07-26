@@ -4,9 +4,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
+import searchengine.dao.AllEntityDAO;
 import searchengine.services.sitehandler.Handler;
 import searchengine.services.sitehandler.PageHandler;
-import searchengine.services.sitehandler.SiteMapHandler;
 import searchengine.services.sitehandler.SiteRunnable;
 
 import java.util.ArrayList;
@@ -18,21 +18,16 @@ import java.util.concurrent.Future;
 
 @Service
 public class IndexServiceImpl implements IndexService {
-
-    SiteEntityDAO siteEntityDAO;
-    PageEntityDAO pageEntityDAO;
-    SitesList sitesList;
-    SiteMapHandler siteMapHandler;
-    ExecutorService executor;
+    private final AllEntityDAO allEntityDAO;
+    private final SitesList sitesList;
+    private ExecutorService executor;
     Handler handler;
     List<Handler> handlerList = new ArrayList<>();
 
     @Autowired
-    public IndexServiceImpl(SitesList sitesList, SiteMapHandler siteMapHandler, SiteEntityDAO siteEntityDAO, PageEntityDAO pageEntityDAO) {
+    public IndexServiceImpl(SitesList sitesList, AllEntityDAO allEntityDAO) {
         this.sitesList = sitesList;
-        this.siteMapHandler = siteMapHandler;
-        this.siteEntityDAO = siteEntityDAO;
-        this.pageEntityDAO = pageEntityDAO;
+        this.allEntityDAO = allEntityDAO;
     }
 
     @Override
@@ -40,7 +35,7 @@ public class IndexServiceImpl implements IndexService {
         if (!isStarted()) {
             executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
             sitesList.getSites().forEach(site -> {
-                SiteRunnable worker = new SiteRunnable(site, siteEntityDAO, pageEntityDAO, sitesList);
+                SiteRunnable worker = new SiteRunnable(site, allEntityDAO);
                 Future<?> future = executor.submit(worker);
                 handler = new Handler();
                 handler.setDomain(site.getUrl());
@@ -62,7 +57,7 @@ public class IndexServiceImpl implements IndexService {
             handlerList.forEach(handler -> {
                 handler.getWorker().stopForkJoin();
                 if (!handler.getFuture().isDone()) {
-                    siteEntityDAO.stopIndexEntity(handler.getDomain());
+                    allEntityDAO.getSiteEntityDAO().stopIndexEntity(handler.getDomain());
                 }
             });
             executor.shutdownNow();
@@ -74,14 +69,14 @@ public class IndexServiceImpl implements IndexService {
 
     @Override
     public Boolean indexPage(String url) {
-        PageHandler pageHandler = new PageHandler(siteEntityDAO, pageEntityDAO);
+        PageHandler pageHandler = new PageHandler(allEntityDAO);
         String domain = sitesList.getSites().stream()
                 .map(Site::getUrl)
                 .filter(url::contains)
                 .findFirst()
                 .orElse(null);
         if (domain != null) {
-            pageHandler.addUpdatePage(url, domain, sitesList);
+            pageHandler.addUpdatePage(url, domain);
             return true;
         } else {
             return false;
@@ -90,8 +85,8 @@ public class IndexServiceImpl implements IndexService {
 
 
     public boolean isStarted() {
-        for (Handler hand : handlerList){
-            if (!hand.getFuture().isDone()){
+        for (Handler hand : handlerList) {
+            if (!hand.getFuture().isDone()) {
                 return true;
             }
         }

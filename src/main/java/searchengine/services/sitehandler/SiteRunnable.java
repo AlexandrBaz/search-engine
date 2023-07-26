@@ -3,43 +3,48 @@ package searchengine.services.sitehandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import searchengine.config.Site;
-import searchengine.config.SitesList;
-import searchengine.services.PageEntityDAO;
-import searchengine.services.SiteEntityDAO;
+import searchengine.dao.AllEntityDAO;
+import searchengine.dao.SiteEntityDAO;
+import searchengine.services.lemma.LemmaCollect;
 
+import java.util.TreeSet;
 import java.util.concurrent.ForkJoinPool;
 
 @Component
-
 public class SiteRunnable implements Runnable {
 
     private final SiteEntityDAO siteEntityDAO;
-    private final PageEntityDAO pageEntityDAO;
-    private final SitesList sitesList;
+    private final AllEntityDAO allEntityDAO;
     Site site;
     ForkJoinPool forkJoinPool;
-    SiteMapHandler siteMapHandler;
 
     @Autowired
-    public SiteRunnable(Site site, SiteEntityDAO siteEntityDAO, PageEntityDAO pageEntityDAO, SitesList sitesList) {
+    public SiteRunnable(Site site, AllEntityDAO allEntityDAO) {
         this.site = site;
-        this.siteEntityDAO = siteEntityDAO;
-        this.pageEntityDAO = pageEntityDAO;
-        this.sitesList = sitesList;
+        this.allEntityDAO = allEntityDAO;
+        this.siteEntityDAO = allEntityDAO.getSiteEntityDAO();
     }
 
     @Override
     public void run() {
         siteEntityDAO.createSite(site);
+        long start = System.currentTimeMillis();
+        SiteMapHandler siteMapHandler = new SiteMapHandler(getRootPage(site), allEntityDAO);
         forkJoinPool = new ForkJoinPool();
-        SiteToCrawl siteToCrawl = new SiteToCrawl();
-        siteToCrawl.setDomain(site.getUrl());
-        siteToCrawl.setUrlToCrawl(site.getUrl());
-        siteMapHandler = new SiteMapHandler(siteToCrawl, sitesList, siteEntityDAO, pageEntityDAO);
         forkJoinPool.invoke(siteMapHandler);
-        if (siteMapHandler.isDone()) {
-            siteEntityDAO.indexComplete(site.getUrl());
-        }
+        siteEntityDAO.indexComplete(site.getUrl());
+        System.out.println("completed " + site.getUrl() + " Time Elapsed -> " + (start-System.currentTimeMillis()) + " ms");
+//        new LemmaCollect(allEntityDAO).collectLemmas(siteEntityDAO.getSiteEntity(site.getUrl()));
+//        System.out.println("lemma finder completed for " + site.getUrl());
+//        }
+    }
+
+    private ParsedPage getRootPage(Site site){
+        ParsedPage rootPage = new ParsedPage();
+        rootPage.setDomain(site.getUrl());
+        rootPage.setUrlToParse(site.getUrl());
+        rootPage = new JsoupParser().getDocument(rootPage);
+        return rootPage;
     }
 
     public void stopForkJoin() {
