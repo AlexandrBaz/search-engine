@@ -1,38 +1,39 @@
-package searchengine.services.sitehandler;
+package searchengine.utils.Parser;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import searchengine.config.Site;
-import searchengine.dao.AllEntityDAO;
-import searchengine.dao.SiteEntityDAO;
-import searchengine.services.lemma.LemmaCollect;
+import searchengine.services.SiteRepositoryService;
+import searchengine.services.SiteRepositoryServiceImpl;
+import searchengine.utils.ServiceStore;
 
-import java.util.TreeSet;
 import java.util.concurrent.ForkJoinPool;
 
 @Component
+@Scope("prototype")
 public class SiteRunnable implements Runnable {
 
-    private final SiteEntityDAO siteEntityDAO;
-    private final AllEntityDAO allEntityDAO;
-    Site site;
+    private SiteRepositoryService siteRepositoryService;
+    private final Site site;
+    private ServiceStore serviceStore;
     ForkJoinPool forkJoinPool;
 
-    @Autowired
-    public SiteRunnable(Site site, AllEntityDAO allEntityDAO) {
+    public SiteRunnable(Site site, ServiceStore serviceStore) {
         this.site = site;
-        this.allEntityDAO = allEntityDAO;
-        this.siteEntityDAO = allEntityDAO.getSiteEntityDAO();
+        this.serviceStore = serviceStore;
+        this.siteRepositoryService = serviceStore.getSiteRepositoryService();
     }
 
     @Override
     public void run() {
-        siteEntityDAO.createSite(site);
+        siteRepositoryService.createSite(site);
         long start = System.currentTimeMillis();
-        SiteMapHandler siteMapHandler = new SiteMapHandler(getRootPage(site), allEntityDAO);
+//        SiteMapHandler siteMapHandler = new SiteMapHandler(site.getUrl(), site.getUrl(), serviceStore);
+        SiteParser siteParser = new SiteParser(site.getUrl(), site.getUrl(), serviceStore);
         forkJoinPool = new ForkJoinPool();
-        forkJoinPool.invoke(siteMapHandler);
-        siteEntityDAO.indexComplete(site.getUrl());
+        forkJoinPool.invoke(siteParser);
+        siteRepositoryService.siteIndexComplete(site.getUrl());
         System.out.println("completed " + site.getUrl() + " Time Elapsed -> " + (start-System.currentTimeMillis()) + " ms");
 //        new LemmaCollect(allEntityDAO).collectLemmas(siteEntityDAO.getSiteEntity(site.getUrl()));
 //        System.out.println("lemma finder completed for " + site.getUrl());
@@ -50,6 +51,11 @@ public class SiteRunnable implements Runnable {
     public void stopForkJoin() {
         Thread.currentThread().interrupt();
         getForkJoinPool().shutdownNow();
+    }
+
+    @Autowired
+    public void setSiteRepositoryService(SiteRepositoryService siteRepositoryService){
+        this.siteRepositoryService = siteRepositoryService;
     }
 
     public ForkJoinPool getForkJoinPool() {

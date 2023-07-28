@@ -1,4 +1,4 @@
-package searchengine.services.sitehandler;
+package searchengine.utils.Parser;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;

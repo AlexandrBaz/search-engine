@@ -1,17 +1,21 @@
 server:
   port: 8080
+
 spring:
+
   datasource:
-    username: root
+    driver-class-name: org.postgresql.Driver
+    username: postgres
     password: 1Parolef*
-    url: jdbc:mysql://localhost:3306/search_engine?useSSL=false&requireSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:postgresql://localhost:5432/search_engine
+
   jpa:
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQL8Dialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
-    show-sql: false
+    show-sql: true
 
 indexing-settings:
   sites:
