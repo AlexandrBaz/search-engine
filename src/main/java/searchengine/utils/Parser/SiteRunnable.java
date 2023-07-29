@@ -8,6 +8,7 @@ import searchengine.services.SiteRepositoryService;
 import searchengine.services.SiteRepositoryServiceImpl;
 import searchengine.utils.ServiceStore;
 
+import java.util.Collections;
 import java.util.concurrent.ForkJoinPool;
 
 @Component
@@ -30,7 +31,7 @@ public class SiteRunnable implements Runnable {
         siteRepositoryService.createSite(site);
         long start = System.currentTimeMillis();
 //        SiteMapHandler siteMapHandler = new SiteMapHandler(site.getUrl(), site.getUrl(), serviceStore);
-        SiteParser siteParser = new SiteParser(site.getUrl(), site.getUrl(), serviceStore);
+        SiteParser siteParser = new SiteParser(Collections.singletonList(site.getUrl()), site.getUrl(), serviceStore);
         forkJoinPool = new ForkJoinPool();
         forkJoinPool.invoke(siteParser);
         siteRepositoryService.siteIndexComplete(site.getUrl());

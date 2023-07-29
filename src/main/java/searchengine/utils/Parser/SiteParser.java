@@ -12,18 +12,19 @@ import java.util.*;
 import java.util.concurrent.RecursiveTask;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 public class SiteParser extends RecursiveTask<Boolean> {
     ReadWriteLock lock = new ReentrantReadWriteLock();
     private final ServiceStore serviceStore;
-    private final String urlToParse;
+    private final List<String> listUrlToParse;
     private final String domain;
     private static final Set<String> uniqueUrls = new TreeSet<>();
     private final List<SiteParser> tasks = new ArrayList<>();
     private static final Set<String> allReadyParsed = Collections.synchronizedSet(new HashSet<>());
 
-    public SiteParser(String urlToParse, String domain, ServiceStore serviceStore) {
-        this.urlToParse = urlToParse;
+    public SiteParser(List<String> listUrlToParse, String domain, ServiceStore serviceStore) {
+        this.listUrlToParse = listUrlToParse;
         this.domain = domain;
         this.serviceStore = serviceStore;
     }
@@ -38,20 +39,17 @@ public class SiteParser extends RecursiveTask<Boolean> {
     }
 
     public List<SiteParser> getNewUrlsForTasks() {
-        Elements elements = parseUrl(urlToParse);
-        if (!elements.isEmpty()) {
-            elements.stream().map((link) -> link.attr("abs:href")).forEachOrdered((childUrl) -> {
+        listUrlToParse.forEach((childUrl) -> {
                 if (checkUrlForValidAndUnique(childUrl)) {
-                    synchronized (uniqueUrls) {
-                        uniqueUrls.add(childUrl);
+                    List<String> listUrlToParse = getUniqueUrlList(childUrl);
+                    if(!listUrlToParse.isEmpty()) {
+                        SiteParser siteMapCrawler = new SiteParser(listUrlToParse, domain, serviceStore);
+                        siteMapCrawler.fork();
+                        tasks.add(siteMapCrawler);
                     }
-                    SiteParser siteMapCrawler = new SiteParser(childUrl, domain, serviceStore);
-                    siteMapCrawler.fork();
-                    tasks.add(siteMapCrawler);
                     System.out.println(uniqueUrls.size() + " uniqueUrls");
                 }
             });
-        }
         return tasks;
     }
 
@@ -67,8 +65,21 @@ public class SiteParser extends RecursiveTask<Boolean> {
         return false;
     }
 
-    private synchronized Elements parseUrl(String url) {
+    private List<String> getUniqueUrlList(String url){
+        lock.writeLock().lock();
+        List<String> uniqueUrlList;
+        try {
+            uniqueUrlList = parseUrl(url);
+            uniqueUrls.add(url);
+        } finally {
+            lock.writeLock().unlock();
+        }
+        return uniqueUrlList;
+    }
+
+    private synchronized List<String> parseUrl(String url) {
         Page page = new Page();
+        List<String> uniqueUrlList = new ArrayList<>();
         Elements elements = new Elements();
         if (url.contains(domain) && !allReadyParsed.contains(url)) {
             if (!url.matches("(.*/)*.+\\.(png|jpg|gif|bmp|jpeg|PNG|JPG|GIF|BMP|pdf|php|zip)$|[?|#]") && !url.contains("?") && !url.contains("#")) {
@@ -93,15 +104,20 @@ public class SiteParser extends RecursiveTask<Boolean> {
 //                page.setDocument(document);
 //                createButch(page);
                     elements = document.select("a[href]");
-                    allReadyParsed.add(url);
+                    if(!elements.isEmpty()) {
+                        uniqueUrlList = elements.stream()
+                                .map(element -> element.attr("abs:href"))
+                                .filter(urlChecking -> !uniqueUrls.contains(urlChecking))
+                                .collect(Collectors.toList());
+                        allReadyParsed.add(url);
+                    }
                     System.out.println(allReadyParsed.size() + " allReadyParsed");
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
             }
         }
-        System.out.println(elements.size() + "elements");
-        return elements;
+        return uniqueUrlList;
     }
 
     public static boolean isUniqueUrl(String url) {
