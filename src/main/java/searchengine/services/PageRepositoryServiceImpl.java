@@ -10,6 +10,13 @@ import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
 import searchengine.repositories.PageRepository;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.TreeMap;
+import java.util.TreeSet;
+
+import static java.util.stream.IntStream.range;
+
 @Service
 @Transactional(readOnly = true)
 public class PageRepositoryServiceImpl implements PageRepositoryService{
@@ -69,6 +76,20 @@ public class PageRepositoryServiceImpl implements PageRepositoryService{
         pageRepository.deleteById(id);
     }
 
+    @Override
+    @Transactional
+    public void addListPageEntity(TreeMap<String, Page> pageList, String domain) {
+        SiteEntity siteEntity = siteRepositoryService.updateSiteEntity(domain);
+        List<PageEntity> pageEntityList = new ArrayList<>();
+        pageList.forEach((k,v) ->{
+            pageEntityList.add(convertPageToPageEntity(v,siteEntity));
+//            pageRepository.save(convertPageToPageEntity(v, siteEntity));
+        });
+        System.out.println(pageEntityList.size() + " from addListPageEntity " + Thread.currentThread().getName());
+        pageRepository.saveAll(pageEntityList);
+
+    }
+
     @Autowired
     public void setPageRepository(PageRepository pageRepository) {
         this.pageRepository = pageRepository;
@@ -77,5 +98,14 @@ public class PageRepositoryServiceImpl implements PageRepositoryService{
     @Autowired
     public void setSiteRepositoryService(SiteRepositoryService siteRepositoryService){
         this.siteRepositoryService = siteRepositoryService;
+    }
+
+    private PageEntity convertPageToPageEntity(Page page, SiteEntity siteEntity){
+        PageEntity pageEntity = new PageEntity();
+        pageEntity.setSite(siteEntity);
+        pageEntity.setPath(page.getPath());
+        pageEntity.setCode(page.getPageStatusCode());
+        pageEntity.setContent(page.getDocument().outerHtml());
+        return pageEntity;
     }
 }

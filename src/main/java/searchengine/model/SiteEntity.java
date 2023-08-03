@@ -17,7 +17,7 @@ import java.util.Objects;
 @NoArgsConstructor
 public class SiteEntity  {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(nullable = false, unique = true)
     private Long Id;
     @Enumerated(EnumType.STRING)

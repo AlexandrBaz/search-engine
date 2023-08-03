@@ -8,128 +8,97 @@ import searchengine.dto.parser.Page;
 import searchengine.utils.ServiceStore;
 
 import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.RecursiveTask;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.concurrent.RecursiveAction;
+import java.util.concurrent.locks.ReentrantLock;
 
-public class SiteParser extends RecursiveTask<Boolean> {
-    ReadWriteLock lock = new ReentrantReadWriteLock();
-    private final ServiceStore serviceStore;
-    private final List<String> listUrlToParse;
+public class SiteParser extends RecursiveAction {
+    ReentrantLock reentrantLock = new ReentrantLock();
     private final String domain;
-    private static final Set<String> uniqueUrls = new TreeSet<>();
+    private final String urlToParse;
+    private final TreeSet<String> uniqueUrls;
     private final List<SiteParser> tasks = new ArrayList<>();
-    private static final Set<String> allReadyParsed = Collections.synchronizedSet(new HashSet<>());
+    private final TreeMap<String,Page> pageList;
 
-    public SiteParser(List<String> listUrlToParse, String domain, ServiceStore serviceStore) {
-        this.listUrlToParse = listUrlToParse;
+    public SiteParser(String urlToParse, String domain, TreeSet<String> uniqueUrls, TreeMap<String, Page> pageList) {
+        this.urlToParse = urlToParse;
         this.domain = domain;
-        this.serviceStore = serviceStore;
+        this.uniqueUrls = uniqueUrls;
+        this.pageList =pageList;
     }
 
     @Override
-    protected Boolean compute() {
+    protected void compute() {
         List<SiteParser> allTasks = getNewUrlsForTasks();
-        for (SiteParser task : allTasks) {
-            task.join();
-        }
-        return true;
+        invokeAll(allTasks);
     }
 
+
     public List<SiteParser> getNewUrlsForTasks() {
-        listUrlToParse.forEach((childUrl) -> {
-                if (checkUrlForValidAndUnique(childUrl)) {
-                    List<String> listUrlToParse = getUniqueUrlList(childUrl);
-                    if(!listUrlToParse.isEmpty()) {
-                        SiteParser siteMapCrawler = new SiteParser(listUrlToParse, domain, serviceStore);
-                        siteMapCrawler.fork();
-                        tasks.add(siteMapCrawler);
-                    }
-                    System.out.println(uniqueUrls.size() + " uniqueUrls");
-                }
-            });
+        if (!pageList.containsKey(urlToParse)) {
+            try {
+                System.out.println(urlToParse);
+                Thread.sleep(300);
+                Connection.Response response = Jsoup.connect(urlToParse)
+                        .userAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.21 (KHTML, like Gecko) Chrome/19.0.1042.0 Safari/535.21")
+                        .timeout(20000)
+                    .ignoreHttpErrors(true)
+//                        .method(Connection.Method.GET)
+                        .execute();
+                Document document = response.parse();
+                addToPageList(document, response.statusCode());
+                System.out.println(pageList.size() + " pageList.size() " + uniqueUrls.size() + " uniqueUrls.size()");
+                Elements elements = document.select("a[href]");
+                    elements.stream().map((link) -> link.attr("abs:href")).forEachOrdered(this::checkUrlAndAddTask);
+            } catch (InterruptedException | IOException e) {
+                e.printStackTrace();
+            }
+        }
         return tasks;
     }
 
-    private boolean checkUrlForValidAndUnique(String url) {
-        lock.readLock().lock();
+    public void addToPageList(Document document, int statusCode){
+        reentrantLock.lock();
+        try {
+            Page page = new Page();
+            page.setPageStatusCode(statusCode);
+            page.setDocument(document);
+            page.setDomain(domain);
+            page.setPath(urlToParse.replaceAll(domain, "/"));
+            if(pageList.isEmpty() || checkPageListBeforeAdd(urlToParse)){
+                pageList.put(urlToParse, page);
+            }
+        }
+        finally {
+            reentrantLock.unlock();
+        }
+    }
+
+    private boolean checkPageListBeforeAdd(String url){
+        reentrantLock.lock();
+        try {
+            return !pageList.containsKey(url);
+        }
+        finally {
+            reentrantLock.unlock();
+        }
+    }
+
+    private void checkUrlAndAddTask(String url) {
+        reentrantLock.lock();
         try {
             if (urlIsValid(url) && urlIsUnique(url)) {
-                return true;
+                uniqueUrls.add(url);
+                SiteParser siteParser = new SiteParser(url, domain, uniqueUrls, pageList);
+                siteParser.fork();
+                tasks.add(siteParser);
             }
         } finally {
-            lock.readLock().unlock();
+            reentrantLock.unlock();
         }
-        return false;
-    }
-
-    private List<String> getUniqueUrlList(String url){
-        lock.writeLock().lock();
-        List<String> uniqueUrlList;
-        try {
-            uniqueUrlList = parseUrl(url);
-            uniqueUrls.add(url);
-        } finally {
-            lock.writeLock().unlock();
-        }
-        return uniqueUrlList;
-    }
-
-    private synchronized List<String> parseUrl(String url) {
-        Page page = new Page();
-        List<String> uniqueUrlList = new ArrayList<>();
-        Elements elements = new Elements();
-        if (url.contains(domain) && !allReadyParsed.contains(url)) {
-            if (!url.matches("(.*/)*.+\\.(png|jpg|gif|bmp|jpeg|PNG|JPG|GIF|BMP|pdf|php|zip)$|[?|#]") && !url.contains("?") && !url.contains("#")) {
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException(e);
-                }
-                Connection.Response response;
-                try {
-                    response = Jsoup.connect(url)
-                            .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
-//                    .referrer("http://www:google.com")
-                            .timeout(10000)
-                            .followRedirects(false)
-                            .execute();
-                    Document document = response.parse();
-//                page.setDomain(domain);
-//                page.setPageStatusCode(response.statusCode());
-//                page.setPath(url.replaceAll(domain, "/"));
-//                page.setDocument(document);
-//                createButch(page);
-                    elements = document.select("a[href]");
-                    if(!elements.isEmpty()) {
-                        uniqueUrlList = elements.stream()
-                                .map(element -> element.attr("abs:href"))
-                                .filter(urlChecking -> !uniqueUrls.contains(urlChecking))
-                                .collect(Collectors.toList());
-                        allReadyParsed.add(url);
-                    }
-                    System.out.println(allReadyParsed.size() + " allReadyParsed");
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }
-        return uniqueUrlList;
-    }
-
-    public static boolean isUniqueUrl(String url) {
-        return getUniqueUrls().contains(url);
-    }
-
-    public static Set<String> getUniqueUrls() {
-        return uniqueUrls;
-    }
-
-    public static int getLevel(String url) {
-        return url.replaceAll("[^/]", "").length() - 2;
     }
 
     private Boolean urlIsUnique(String url) {
