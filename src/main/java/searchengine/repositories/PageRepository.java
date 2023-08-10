@@ -17,5 +17,6 @@ public interface PageRepository extends JpaRepository<PageEntity, Long> {
 
     Slice<PageEntity> findAllBySite(SiteEntity siteEntity, Pageable pageable);
 
+    int countBySite(SiteEntity siteEntity);
     Stream<PageEntity> findAllBySite(SiteEntity siteEntity);
 }

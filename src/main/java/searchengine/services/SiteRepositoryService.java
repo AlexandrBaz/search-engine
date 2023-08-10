@@ -5,11 +5,15 @@ import org.springframework.stereotype.Service;
 import searchengine.config.Site;
 import searchengine.model.SiteEntity;
 
+import java.util.List;
+
 @Service
 @Scope("prototype")
 public interface SiteRepositoryService {
 
    SiteEntity getSiteEntityByDomain(String domain);
+
+   List<SiteEntity> findAll();
 
    void createSite(Site site);
 

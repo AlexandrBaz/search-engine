@@ -6,6 +6,7 @@ import searchengine.model.LemmaEntity;
 import searchengine.model.PageEntity;
 
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Service
 public interface IndexRepositoryService {
@@ -16,4 +17,5 @@ public interface IndexRepositoryService {
 
     void addToIndexEntity(LemmaEntity lemmaEntity, Integer rank, PageEntity pageEntity);
 
+    void addIndexEntityList(CopyOnWriteArrayList<IndexEntity> allRank);
 }

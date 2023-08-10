@@ -28,4 +28,6 @@ public interface PageRepositoryService {
     void deletePage(String path, String domain);
 
     void addListPageEntity(TreeMap<String, Page> pageList, String domain);
+
+    int getCountPageBySite(SiteEntity siteEntity);
 }

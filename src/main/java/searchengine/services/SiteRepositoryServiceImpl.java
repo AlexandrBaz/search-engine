@@ -10,6 +10,7 @@ import searchengine.repositories.SiteRepository;
 import searchengine.model.SiteEntity;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service("SiteRepositoryServiceImpl")
 @Transactional(readOnly = true)
@@ -20,6 +21,11 @@ public class SiteRepositoryServiceImpl implements SiteRepositoryService{
     @Override
     public SiteEntity getSiteEntityByDomain(String domain) {
         return siteRepository.findByUrl(domain).orElse(null);
+    }
+
+    @Override
+    public List<SiteEntity> findAll() {
+        return siteRepository.findAll();
     }
 
     @Override

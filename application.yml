@@ -4,26 +4,28 @@ server:
 spring:
 
   datasource:
-    driver-class-name: org.postgresql.Driver
-    username: postgres
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
     password: 1Parolef*
-    url: jdbc:postgresql://localhost:5432/search_engine
+    url: jdbc:mysql://localhost:3306/search_engine?useSSL=false&requireSSL=false&allowPublicKeyRetrieval=true
 
   jpa:
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        generate_statistics: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        generate_statistics: false
         order_inserts: true
         jdbc:
-          batch_size: 50
+          batch_size: 100
+#        schema_update:
+#          unique_constraint_strategy: RECREATE_QUIETLY
 
 
     hibernate:
       ddl-auto: update
     show-sql: true
 
-#spring.jpa.properties.hibernate.generate_statistics=true
+#spring.jpa.properties.hibernate.schema_update.unique_constraint_strategy=RECREATE_QUIETLY
 
 indexing-settings:
   sites:
@@ -32,14 +34,10 @@ indexing-settings:
 #      name: https://nopaper.ru/
 #    - url: https://radiomv.ru/
 #      name: https://radiomv.ru/
-    - url: https://et-cetera.ru/mobile/
-      name: et-cetera.ru
-#    - url: https://www.cialef.com/
-#      name: https://www.cialef.com/
-#    - url: https://nopaper.ru/
-#      name: https://nopaper.ru/
-#    - url: https://dombulgakova.ru/
-#      name: https://dombulgakova.ru/
+#    - url: https://et-cetera.ru/mobile/
+#      name: et-cetera.ru
+    - url: https://dombulgakova.ru/
+      name: https://dombulgakova.ru/
 #    - url: https://playback.ru/
  #     name: https://playback.ru/
 #     - url: https://skillbox.ru/

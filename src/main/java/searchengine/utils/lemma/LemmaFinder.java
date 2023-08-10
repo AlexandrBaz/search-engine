@@ -1,11 +1,15 @@
 package searchengine.utils.lemma;
+
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.jsoup.*;
+import org.jsoup.nodes.Document;
 import org.jsoup.safety.Safelist;
+import org.jsoup.select.Elements;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class LemmaFinder {
     private final LuceneMorphology luceneMorphology;
@@ -14,7 +18,7 @@ public class LemmaFinder {
     private static final String trashHtmlTags = "(&lt;)(.*?)(&gt; {3})";
 
     public static LemmaFinder getInstance() throws IOException {
-        LuceneMorphology morphology= new RussianLuceneMorphology();
+        LuceneMorphology morphology = new RussianLuceneMorphology();
         return new LemmaFinder(morphology);
     }
 
@@ -22,7 +26,7 @@ public class LemmaFinder {
         this.luceneMorphology = luceneMorphology;
     }
 
-    private LemmaFinder(){
+    private LemmaFinder() {
         throw new RuntimeException("Disallow construct");
     }
 
@@ -32,33 +36,38 @@ public class LemmaFinder {
      * @param text текст из которого будут выбираться леммы
      * @return ключ является леммой, а значение количеством найденных лемм
      */
-    public Map<String, Integer> collectLemmas(String text) {
-        String[] words = arrayContainsRussianWords(text);
-        HashMap<String, Integer> lemmas = new HashMap<>();
+    public ConcurrentHashMap<String, Integer> collectLemmas(String text) {
+        ConcurrentHashMap<String, Integer> lemmas = new ConcurrentHashMap<>();
+        partitionDocument(text).forEach((key, value) -> {
+            if (!value.isBlank()) {
+                String[] words = arrayContainsRussianWords(value);
 
-        for (String word : words) {
-            if (word.isBlank()) {
-                continue;
+
+                for (String word : words) {
+                    if (word.isBlank()) {
+                        continue;
+                    }
+
+                    List<String> wordBaseForms = luceneMorphology.getMorphInfo(word);
+                    if (anyWordBaseBelongToParticle(wordBaseForms)) {
+                        continue;
+                    }
+
+                    List<String> normalForms = luceneMorphology.getNormalForms(word);
+                    if (normalForms.isEmpty()) {
+                        continue;
+                    }
+
+                    String normalWord = normalForms.get(0);
+
+                    if (lemmas.containsKey(normalWord)) {
+                        lemmas.put(normalWord, lemmas.get(normalWord) + 1);
+                    } else {
+                        lemmas.put(normalWord, 1);
+                    }
+                }
             }
-
-            List<String> wordBaseForms = luceneMorphology.getMorphInfo(word);
-            if (anyWordBaseBelongToParticle(wordBaseForms)) {
-                continue;
-            }
-
-            List<String> normalForms = luceneMorphology.getNormalForms(word);
-            if (normalForms.isEmpty()) {
-                continue;
-            }
-
-            String normalWord = normalForms.get(0);
-
-            if (lemmas.containsKey(normalWord)) {
-                lemmas.put(normalWord, lemmas.get(normalWord) + 1);
-            } else {
-                lemmas.put(normalWord, 1);
-            }
-        }
+        });
 
         return lemmas;
     }
@@ -81,6 +90,24 @@ public class LemmaFinder {
             }
         }
         return lemmaSet;
+    }
+
+    public ConcurrentHashMap<String, String> partitionDocument(String page) {
+        Document document = Jsoup.parse(page);
+        Elements title = document.getElementsByTag("title").remove();
+        Elements description = document.getElementsByTag("description").remove();
+        Elements footer = document.getElementsByTag("footer").remove();
+        Elements h1Elements = document.getElementsByTag("h1").remove();
+        Elements h2Elements = document.getElementsByTag("h2").remove();
+        Elements body = document.getElementsByTag("body").remove();
+        ConcurrentHashMap<String, String> pageParts = new ConcurrentHashMap<>();
+        pageParts.put("title", title.text());
+        pageParts.put("description", description.text());
+        pageParts.put("h1Elements", h1Elements.text());
+        pageParts.put("h2Elements", h2Elements.text());
+        pageParts.put("body", body.text());
+        pageParts.put("footer", footer.text());
+        return pageParts;
     }
 
     private boolean anyWordBaseBelongToParticle(List<String> wordBaseForms) {

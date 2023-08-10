@@ -3,6 +3,8 @@ package searchengine.model;
 import lombok.*;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.GenericGenerator;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -15,7 +17,22 @@ import java.util.Objects;
 @NoArgsConstructor
 public class PageEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+//    @GenericGenerator(
+//            name = "sequenceGenerator",
+////            type = "enhanced-sequence",
+//            type = org.hibernate.id.enhanced.SequenceStyleGenerator.class,
+//            parameters = {
+//                    @org.hibernate.annotations.Parameter(name = "sequence_name", value = "hibernate_sequence"),
+//                    @org.hibernate.annotations.Parameter(name = "optimizer", value = "pooled"),
+//                    @org.hibernate.annotations.Parameter(name = "initial_value", value = "1"),
+//                    @org.hibernate.annotations.Parameter(name = "increment_size", value = "50")
+//            }
+//    )
+//    @GeneratedValue(
+//            strategy = GenerationType.SEQUENCE,
+//            generator = "sequenceGenerator"
+//    )
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(nullable = false, unique = true)
     private Long Id;
     @ManyToOne(fetch = FetchType.LAZY)
@@ -25,8 +42,9 @@ public class PageEntity {
     private String path;
     @Column(columnDefinition = "INT", nullable = false)
     private Integer code;
-//    @Column(length = 16777215, columnDefinition = "mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci")
-    @Column(length = 999999, name = "content", nullable = true)
+
+//    @Column(length = 999999, name = "content", nullable = true)
+    @Column(length = 16777215, columnDefinition = "mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci", name = "content", nullable = true)
     private String content;
 
     @OneToMany(mappedBy = "page", cascade = CascadeType.ALL, targetEntity = IndexEntity.class, orphanRemoval = true)

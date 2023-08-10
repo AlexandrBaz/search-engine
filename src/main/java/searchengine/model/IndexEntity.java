@@ -7,7 +7,7 @@ import lombok.*;
 import java.util.Objects;
 
 @Entity
-@Table(name = "`index`")
+@Table(name = "`index`" )
 //, indexes = {@Index(name = "index_key", columnList="lemma_id, page_id", unique = true)}
 @Setter
 @Getter
@@ -15,7 +15,7 @@ import java.util.Objects;
 @NoArgsConstructor
 public class IndexEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(nullable = false, unique = true)
     private long id;
     @ManyToOne(fetch = FetchType.LAZY)

@@ -10,6 +10,7 @@ import searchengine.model.PageEntity;
 import searchengine.repositories.IndexRepository;
 
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Service
 @Transactional(readOnly = true)
@@ -36,6 +37,12 @@ public class IndexRepositoryServiceImpl implements IndexRepositoryService{
         indexEntity.setLemmaRank(rank);
         indexEntity.setPage(pageEntity);
         indexRepository.saveAndFlush(indexEntity);
+    }
+
+    @Override
+    @Transactional
+    public synchronized void addIndexEntityList(CopyOnWriteArrayList<IndexEntity> allRank) {
+        indexRepository.saveAll(allRank);
     }
 
     @Autowired

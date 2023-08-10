@@ -8,15 +8,14 @@ import java.util.List;
 import java.util.Objects;
 
 @Entity
-@Table(name = "lemma")
-//, indexes = {@Index(name = "index_key", columnList="lemma, site_id", unique = true)}
+@Table(name = "lemma", indexes = {@Index(name = "index_key", columnList="lemma, site_id", unique = true)})
 @Setter
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
 public class LemmaEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(nullable = false, unique = true)
     private long id;
     @ManyToOne(fetch = FetchType.LAZY)

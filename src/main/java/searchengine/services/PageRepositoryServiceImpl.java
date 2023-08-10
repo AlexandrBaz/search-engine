@@ -1,5 +1,6 @@
 package searchengine.services;
 
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -78,7 +79,7 @@ public class PageRepositoryServiceImpl implements PageRepositoryService{
 
     @Override
     @Transactional
-    public void addListPageEntity(TreeMap<String, Page> pageList, String domain) {
+    public synchronized void addListPageEntity(@NotNull TreeMap<String, Page> pageList, String domain) {
         SiteEntity siteEntity = siteRepositoryService.updateSiteEntity(domain);
         List<PageEntity> pageEntityList = new ArrayList<>();
         pageList.forEach((k,v) ->{
@@ -87,7 +88,13 @@ public class PageRepositoryServiceImpl implements PageRepositoryService{
         });
         System.out.println(pageEntityList.size() + " from addListPageEntity " + Thread.currentThread().getName());
         pageRepository.saveAll(pageEntityList);
+        System.out.println(pageEntityList.size() + " end addListPageEntity " + Thread.currentThread().getName());
 
+    }
+
+    @Override
+    public int getCountPageBySite(SiteEntity siteEntity) {
+        return pageRepository.countBySite(siteEntity);
     }
 
     @Autowired

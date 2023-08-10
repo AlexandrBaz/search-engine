@@ -16,4 +16,10 @@ public interface LemmaRepositoryService {
     void deleteLemmaOnPage(List<IndexEntity> indexEntityList);
 
     void addNewLemma(Map<String, Integer> lemmaMap, PageEntity pageEntity);
+
+    List<LemmaEntity> getAllLemmaEntityBySiteEntity(SiteEntity siteEntity);
+
+    void addLemmaEntityList(Map<String, LemmaEntity> mapLemmaEntity);
+
+    int getCountLemmaBySite(SiteEntity siteEntity);
 }

@@ -1,17 +1,14 @@
 package searchengine.utils.Parser;
 
+import org.jetbrains.annotations.NotNull;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 import searchengine.dto.parser.Page;
-import searchengine.utils.ServiceStore;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.RecursiveAction;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -19,11 +16,11 @@ public class SiteParser extends RecursiveAction {
     ReentrantLock reentrantLock = new ReentrantLock();
     private final String domain;
     private final String urlToParse;
-    private final TreeSet<String> uniqueUrls;
+    private final Set<String> uniqueUrls;
     private final List<SiteParser> tasks = new ArrayList<>();
     private final TreeMap<String,Page> pageList;
 
-    public SiteParser(String urlToParse, String domain, TreeSet<String> uniqueUrls, TreeMap<String, Page> pageList) {
+    public SiteParser(String urlToParse, String domain, Set<String> uniqueUrls, TreeMap<String, Page> pageList) {
         this.urlToParse = urlToParse;
         this.domain = domain;
         this.uniqueUrls = uniqueUrls;
@@ -40,7 +37,7 @@ public class SiteParser extends RecursiveAction {
     public List<SiteParser> getNewUrlsForTasks() {
         if (!pageList.containsKey(urlToParse)) {
             try {
-                System.out.println(urlToParse);
+//                System.out.println(urlToParse);
                 Thread.sleep(300);
                 Connection.Response response = Jsoup.connect(urlToParse)
                         .userAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.21 (KHTML, like Gecko) Chrome/19.0.1042.0 Safari/535.21")
@@ -105,10 +102,10 @@ public class SiteParser extends RecursiveAction {
         return !uniqueUrls.contains(url);
     }
 
-    private boolean urlIsValid(String url) {
+    private boolean urlIsValid(@NotNull String url) {
         String mediaRegex = "(.*/)*.+\\.(png|jpg|gif|bmp|jpeg|PNG|JPG|GIF|BMP|pdf|php|zip)$|[?|#]";
         return !url.matches(mediaRegex)
-                && url.contains(domain)
+                && url.startsWith(domain)
                 && (url.endsWith("/")
                 || url.endsWith("html"));
     }

@@ -59,6 +59,23 @@ public class LemmaRepositoryServiceImpl implements LemmaRepositoryService{
         });
     }
 
+    @Override
+    public List<LemmaEntity> getAllLemmaEntityBySiteEntity(SiteEntity siteEntity) {
+        return lemmaRepository.findAllBySite(siteEntity);
+    }
+
+    @Override
+    @Transactional
+    public synchronized void addLemmaEntityList(Map<String, LemmaEntity> mapLemmaEntity) {
+        List<LemmaEntity> lemmaEntities = mapLemmaEntity.values().stream().toList();
+        lemmaRepository.saveAll(lemmaEntities);
+    }
+
+    @Override
+    public int getCountLemmaBySite(SiteEntity siteEntity) {
+        return lemmaRepository.countBySite(siteEntity);
+    }
+
 // Worked Methods
 //    public void addToIndexEntity(String lemma, Integer rank, PageEntity pageEntity) {// this IndexEntity
 //        SiteEntity siteEntity = pageEntity.getSite();
