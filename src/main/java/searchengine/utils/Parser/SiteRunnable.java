@@ -13,6 +13,7 @@ import searchengine.utils.lemma.LemmaRank;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ForkJoinPool;
 
 @Component
@@ -21,18 +22,15 @@ public class SiteRunnable implements Runnable {
 
     private final SiteRepositoryService siteRepositoryService;
     private final PageRepositoryService pageRepositoryService;
-
     private final Site site;
-    private final ServiceStore serviceStore;
-    private final TreeSet<String> uniqueUrls;
-    private final TreeMap<String, Page> pageList;
+    private final CopyOnWriteArrayList<Page> pageEntityList;
+    private final ArrayList<String> uniqUrlList;
     ForkJoinPool forkJoinPool;
 
     public SiteRunnable(Site site, @NotNull ServiceStore serviceStore) {
-        this.uniqueUrls = new TreeSet<>();
-        this.pageList = new TreeMap<>();
+        this.pageEntityList = new CopyOnWriteArrayList<>();
+        this.uniqUrlList = new ArrayList<>();
         this.site = site;
-        this.serviceStore = serviceStore;
         this.siteRepositoryService = serviceStore.getSiteRepositoryService();
         this.pageRepositoryService = serviceStore.getPageRepositoryService();
     }
@@ -41,20 +39,30 @@ public class SiteRunnable implements Runnable {
     public void run() {
         siteRepositoryService.createSite(site);
         long start = System.currentTimeMillis();
-        uniqueUrls.add(site.getUrl());
-        SiteParser siteParser = new SiteParser(site.getUrl(), site.getUrl(), uniqueUrls, pageList);
-        forkJoinPool = new ForkJoinPool();
-        forkJoinPool.invoke(siteParser);
+//        uniqueUrls.add(site.getUrl());
+//        SiteParser siteParser = new SiteParser(site.getUrl(), site.getUrl(), uniqueUrls, pageEntityList, pageRepositoryService);
+//        forkJoinPool = new ForkJoinPool();
+//        forkJoinPool.invoke(siteParser);
 
-        System.out.println("completed " + site.getUrl() + " Time Elapsed -> " + (start-System.currentTimeMillis()) + " ms");
-        System.out.println(uniqueUrls.size() + " from SiteRunnable");
-        pageRepositoryService.addListPageEntity(pageList, site.getUrl());
-        System.out.println("completed adding to base" + site.getUrl() + " Time Elapsed -> " + (start-System.currentTimeMillis()) + " ms");
-        new LemmaCollect(serviceStore).collectMapsLemmas(siteRepositoryService.getSiteEntityByDomain(site.getUrl()));
-        System.out.println("lemma finder completed for " + site.getUrl() + " Time Elapsed -> " + (start-System.currentTimeMillis()) + " ms");
-        new LemmaRank(serviceStore).lemmaRankBySite(site.getUrl());
-        System.out.println("rank completed for " + site.getUrl() + " Time Elapsed -> " + (start-System.currentTimeMillis()) + " ms");
-        siteRepositoryService.siteIndexComplete(site.getUrl());
+        ListSiteParser listSiteParser = new ListSiteParser(Collections.singletonList(site.getUrl()), site.getUrl(), pageEntityList, uniqUrlList, this);
+        forkJoinPool = new ForkJoinPool();
+        forkJoinPool.invoke(listSiteParser);
+        System.out.println("fjp end");
+        if (forkJoinPool.isQuiescent()){
+            synchronized (pageEntityList) {
+                pageRepositoryService.addListPageEntity(pageEntityList, site.getUrl());
+                System.out.println("completed " + site.getUrl() + " Time Elapsed -> " + (start-System.currentTimeMillis()) + " ms");
+                System.out.println(uniqUrlList.size() + " from SiteRunnable");
+            }
+        }
+
+
+//        System.out.println("completed adding to base" + site.getUrl() + " Time Elapsed -> " + (start-System.currentTimeMillis()) + " ms");
+//        new LemmaCollect(serviceStore).collectMapsLemmas(siteRepositoryService.getSiteEntityByDomain(site.getUrl()));
+//        System.out.println("lemma finder completed for " + site.getUrl() + " Time Elapsed -> " + (start-System.currentTimeMillis()) + " ms");
+//        new LemmaRank(serviceStore).lemmaRankBySite(site.getUrl());
+//        System.out.println("rank completed for " + site.getUrl() + " Time Elapsed -> " + (start-System.currentTimeMillis()) + " ms");
+//        siteRepositoryService.siteIndexComplete(site.getUrl());
 //        }
     }
 
@@ -67,4 +75,10 @@ public class SiteRunnable implements Runnable {
     public ForkJoinPool getForkJoinPool() {
         return forkJoinPool;
     }
+
+    public PageRepositoryService getPageRepositoryService() {
+        return this.pageRepositoryService;
+    }
+
+
 }

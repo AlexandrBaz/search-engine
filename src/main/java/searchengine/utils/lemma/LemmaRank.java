@@ -22,12 +22,12 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 @Component
 public class LemmaRank {
-    private final static Integer BATCH_SIZE = 10;
+    private final static Integer BATCH_SIZE = 50;
     private final SiteRepositoryService siteRepositoryService;
     private final LemmaRepositoryService lemmaRepositoryService;
     private final PageRepositoryService pageRepositoryService;
     private final IndexRepositoryService indexRepositoryService;
-    private final static CopyOnWriteArrayList<IndexEntity> allRank = new CopyOnWriteArrayList<>();
+    private CopyOnWriteArrayList<IndexEntity> sliceLemmaRank;
 
     public LemmaRank(@NotNull ServiceStore serviceStore) {
         this.siteRepositoryService = serviceStore.getSiteRepositoryService();
@@ -40,14 +40,24 @@ public class LemmaRank {
         SiteEntity siteEntity = siteRepositoryService.getSiteEntityByDomain(domain);
         List<LemmaEntity> lemmaEntityList = lemmaRepositoryService.getAllLemmaEntityBySiteEntity(siteEntity);
         Slice<PageEntity> slice = pageRepositoryService.getSliceOfPages(siteEntity, PageRequest.of(0, BATCH_SIZE));
+        sliceLemmaRank = new CopyOnWriteArrayList<>();
         slice.getContent().stream().parallel()
-                .forEach(pageEntity -> collectIndexLemma(getAllIndexRankOfPage(pageEntity), pageEntity, lemmaEntityList));
+                .forEach(pageEntity -> {
+                    ConcurrentHashMap<String, Float> lemmaRankFromPage = getAllIndexRankOfPage(pageEntity);
+                    collectIndexLemma(lemmaRankFromPage, pageEntity, lemmaEntityList, sliceLemmaRank);
+                });
+        indexRepositoryService.addIndexEntityList(sliceLemmaRank);
         while (slice.hasNext()) {
+            sliceLemmaRank.clear();
             slice = pageRepositoryService.getSliceOfPages(siteEntity, slice.nextPageable());
             slice.getContent().stream().parallel()
-                    .forEach(pageEntity -> collectIndexLemma(getAllIndexRankOfPage(pageEntity), pageEntity, lemmaEntityList));
+                    .forEach(pageEntity -> {
+                        ConcurrentHashMap<String, Float> lemmaRankFromPage = getAllIndexRankOfPage(pageEntity);
+                        collectIndexLemma(lemmaRankFromPage, pageEntity, lemmaEntityList, sliceLemmaRank);
+                    });
+            indexRepositoryService.addIndexEntityList(sliceLemmaRank);
         }
-        indexRepositoryService.addIndexEntityList(allRank);
+
     }
 
     private ConcurrentHashMap<String, Float> getAllIndexRankOfPage(@NotNull PageEntity pageEntity) {
@@ -91,15 +101,14 @@ public class LemmaRank {
 
     private void collectIndexLemma(@NotNull ConcurrentHashMap<String, Float> partIndexLemma,
                                    PageEntity pageEntity,
-                                   List<LemmaEntity> lemmaEntityList) {
+                                   List<LemmaEntity> lemmaEntityList, CopyOnWriteArrayList<IndexEntity> sliceLemmaRank) {
         partIndexLemma.forEach((lemma, rank) -> {
             LemmaEntity lemmaEntity = lemmaEntityList.stream().parallel().filter(lem -> lem.getLemma().equals(lemma)).findFirst().orElse(null);
             IndexEntity indexEntity = new IndexEntity();
             indexEntity.setLemmaRank(rank);
             indexEntity.setPage(pageEntity);
             indexEntity.setLemma(lemmaEntity);
-            allRank.add(indexEntity);
+            sliceLemmaRank.add(indexEntity);
         });
-
     }
 }

@@ -20,12 +20,13 @@ import static java.util.stream.IntStream.range;
 
 @Service
 @Transactional(readOnly = true)
-public class PageRepositoryServiceImpl implements PageRepositoryService{
+public class PageRepositoryServiceImpl implements PageRepositoryService {
     private PageRepository pageRepository;
 
     private SiteRepositoryService siteRepositoryService;
+
     @Override
-    public PageEntity getPageEntity(String path, SiteEntity siteEntity){
+    public PageEntity getPageEntity(String path, SiteEntity siteEntity) {
         return pageRepository.findByPathAndSite(path, siteEntity).orElse(null);
     }
 
@@ -41,7 +42,7 @@ public class PageRepositoryServiceImpl implements PageRepositoryService{
     }
 
     @Override
-    public Slice<PageEntity> getSliceOfPages(SiteEntity siteEntity, Pageable pageable){
+    public Slice<PageEntity> getSliceOfPages(SiteEntity siteEntity, Pageable pageable) {
         return pageRepository.findAllBySite(siteEntity, pageable);
     }
 
@@ -72,18 +73,33 @@ public class PageRepositoryServiceImpl implements PageRepositoryService{
 
     @Override
     @Transactional
-    public void deletePage(String path, String domain){
+    public void deletePage(String path, String domain) {
         long id = getPageEntity(path, siteRepositoryService.getSiteEntityByDomain(domain)).getId();
         pageRepository.deleteById(id);
     }
 
     @Override
     @Transactional
-    public synchronized void addListPageEntity(@NotNull TreeMap<String, Page> pageList, String domain) {
+    public synchronized void addListPageEntity(List<Page> pageList, String domain) {
         SiteEntity siteEntity = siteRepositoryService.updateSiteEntity(domain);
         List<PageEntity> pageEntityList = new ArrayList<>();
-        pageList.forEach((k,v) ->{
-            pageEntityList.add(convertPageToPageEntity(v,siteEntity));
+        pageList.forEach(page -> {
+                    PageEntity pageEntity = convertPageToPageEntity(page, siteEntity);
+                    pageEntityList.add(pageEntity);
+                }
+        );
+        pageRepository.saveAll(pageEntityList);
+        System.out.println(pageEntityList.size() + " synchronized void addListPageEntity");
+    }
+
+    @Override
+    @Transactional
+    public synchronized void addListPageEntity(@NotNull TreeMap<String, Page> pageList, String domain) {
+        System.out.println("start adding");
+        SiteEntity siteEntity = siteRepositoryService.updateSiteEntity(domain);
+        List<PageEntity> pageEntityList = new ArrayList<>();
+        pageList.forEach((k, v) -> {
+            pageEntityList.add(convertPageToPageEntity(v, siteEntity));
 //            pageRepository.save(convertPageToPageEntity(v, siteEntity));
         });
         System.out.println(pageEntityList.size() + " from addListPageEntity " + Thread.currentThread().getName());
@@ -103,11 +119,11 @@ public class PageRepositoryServiceImpl implements PageRepositoryService{
     }
 
     @Autowired
-    public void setSiteRepositoryService(SiteRepositoryService siteRepositoryService){
+    public void setSiteRepositoryService(SiteRepositoryService siteRepositoryService) {
         this.siteRepositoryService = siteRepositoryService;
     }
 
-    private PageEntity convertPageToPageEntity(Page page, SiteEntity siteEntity){
+    private synchronized @NotNull PageEntity convertPageToPageEntity(@NotNull Page page, SiteEntity siteEntity) {
         PageEntity pageEntity = new PageEntity();
         pageEntity.setSite(siteEntity);
         pageEntity.setPath(page.getPath());

@@ -12,20 +12,16 @@ spring:
   jpa:
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQL8Dialect
+        dialect: org.hibernate.dialect.MySQLDialect
         generate_statistics: false
         order_inserts: true
         jdbc:
           batch_size: 100
-#        schema_update:
-#          unique_constraint_strategy: RECREATE_QUIETLY
 
 
     hibernate:
       ddl-auto: update
     show-sql: true
-
-#spring.jpa.properties.hibernate.schema_update.unique_constraint_strategy=RECREATE_QUIETLY
 
 indexing-settings:
   sites:
@@ -39,7 +35,7 @@ indexing-settings:
     - url: https://dombulgakova.ru/
       name: https://dombulgakova.ru/
 #    - url: https://playback.ru/
- #     name: https://playback.ru/
+#      name: https://playback.ru/
 #     - url: https://skillbox.ru/
 #       name: https://skillbox.ru/
 

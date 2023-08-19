@@ -7,6 +7,7 @@ import searchengine.dto.parser.Page;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
 
+import java.util.List;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
@@ -28,6 +29,7 @@ public interface PageRepositoryService {
     void deletePage(String path, String domain);
 
     void addListPageEntity(TreeMap<String, Page> pageList, String domain);
+    void addListPageEntity(List<Page> pageList, String domain);
 
     int getCountPageBySite(SiteEntity siteEntity);
 }

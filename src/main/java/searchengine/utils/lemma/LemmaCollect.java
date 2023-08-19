@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class LemmaCollect {
-    private final static Integer BATCH_SIZE = 10;
+    private final static Integer BATCH_SIZE = 50;
     private final PageRepositoryService pageRepositoryService;
     private final LemmaRepositoryService lemmaRepositoryService;
     ConcurrentHashMap<String, LemmaEntity> mapLemmaEntity = new ConcurrentHashMap<>();
@@ -31,6 +31,7 @@ public class LemmaCollect {
         long start = System.currentTimeMillis();
 
         Slice<PageEntity> slice = pageRepositoryService.getSliceOfPages(siteEntity, PageRequest.of(0, BATCH_SIZE));
+
         List<PageEntity> pageEntityList = slice.getContent();
         pageEntityList.stream().parallel().forEach(this::setLemma);
         while (slice.hasNext()) {
