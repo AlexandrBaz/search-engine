@@ -17,6 +17,8 @@ public interface SiteRepositoryService {
 
    void createSite(Site site);
 
+   void deleteSiteEntity(SiteEntity siteEntity);
+
    SiteEntity updateSiteEntity(String domain);
 
    void stopIndexingThisEntity(String domain);
@@ -24,4 +26,6 @@ public interface SiteRepositoryService {
    void siteIndexComplete(String domain);
 
    void setParseError(SiteEntity siteEntity, String error);
+
+   boolean isSiteEntityPresent(String domain);
 }

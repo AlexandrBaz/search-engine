@@ -3,6 +3,9 @@ package searchengine.model;
 import lombok.*;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -18,6 +21,8 @@ public class LemmaEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(nullable = false, unique = true)
     private long id;
+
+    @OnDelete(action = OnDeleteAction.CASCADE)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "site_id", nullable = false)
     SiteEntity site;
@@ -25,8 +30,8 @@ public class LemmaEntity {
     private String lemma;
     @Column(nullable = false)
     private long frequency;
-
-    @OneToMany(mappedBy = "lemma", cascade = CascadeType.ALL, targetEntity = IndexEntity.class, orphanRemoval = true)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    @OneToMany(mappedBy = "lemma", targetEntity = IndexEntity.class)
     private List<IndexEntity> indexLemmaEntities = new ArrayList<>();
 
     public void addIndex(IndexEntity indexEntity) {

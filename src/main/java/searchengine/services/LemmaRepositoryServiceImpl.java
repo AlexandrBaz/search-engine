@@ -1,5 +1,6 @@
 package searchengine.services;
 
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +27,7 @@ public class LemmaRepositoryServiceImpl implements LemmaRepositoryService{
 
     @Override
     @Transactional
-    public void deleteLemmaOnPage(List<IndexEntity> indexEntityList) {
+    public void deleteLemmaOnPage(@NotNull List<IndexEntity> indexEntityList) {
         indexEntityList.forEach(indexEntity -> {
             LemmaEntity lemmaEntity = lemmaRepository.findByLemmaAndSite(indexEntity.getLemma().getLemma(), indexEntity.getLemma().getSite()).orElse(null);
             if (Objects.requireNonNull(lemmaEntity).getFrequency() == 1) {
@@ -40,7 +41,7 @@ public class LemmaRepositoryServiceImpl implements LemmaRepositoryService{
 
     @Override
     @Transactional
-    public synchronized void addNewLemma(Map<String, Integer> lemmaMap, PageEntity pageEntity) {
+    public synchronized void addNewLemma(@NotNull Map<String, Integer> lemmaMap, PageEntity pageEntity) {
         lemmaMap.forEach((lemma, rank) -> {
             LemmaEntity lemmaEntity = getLemmaEntity(lemma, pageEntity.getSite());
             if (lemmaEntity != null) {
@@ -60,13 +61,20 @@ public class LemmaRepositoryServiceImpl implements LemmaRepositoryService{
     }
 
     @Override
+    @Transactional
+    public synchronized void deleteByIdListPageEntity(List<Long> pageEntityListId) {
+        lemmaRepository.deleteAllById(pageEntityListId);
+
+    }
+
+    @Override
     public List<LemmaEntity> getAllLemmaEntityBySiteEntity(SiteEntity siteEntity) {
         return lemmaRepository.findAllBySite(siteEntity);
     }
 
     @Override
     @Transactional
-    public synchronized void addLemmaEntityList(Map<String, LemmaEntity> mapLemmaEntity) {
+    public synchronized void addLemmaEntityList(@NotNull Map<String, LemmaEntity> mapLemmaEntity) {
         List<LemmaEntity> lemmaEntities = mapLemmaEntity.values().stream().toList();
         lemmaRepository.saveAll(lemmaEntities);
     }

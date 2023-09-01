@@ -44,6 +44,12 @@ public class SiteRepositoryServiceImpl implements SiteRepositoryService{
 
     @Override
     @Transactional
+    public void deleteSiteEntity(SiteEntity siteEntity) {
+        siteRepository.delete(siteEntity);
+    }
+
+    @Override
+    @Transactional
     public SiteEntity updateSiteEntity(String domain) {
         SiteEntity siteEntity = getSiteEntityByDomain(domain);
         siteEntity.setStatusTime(LocalDateTime.now());
@@ -79,6 +85,11 @@ public class SiteRepositoryServiceImpl implements SiteRepositoryService{
         siteEntity.setStatusTime(LocalDateTime.now());
         siteEntity.setLastError(error);
         siteRepository.saveAndFlush(siteEntity);
+    }
+
+    @Override
+    public boolean isSiteEntityPresent(String domain) {
+        return siteRepository.findByUrl(domain).isPresent();
     }
 
     @Autowired

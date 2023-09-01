@@ -10,13 +10,20 @@ import searchengine.model.SiteEntity;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public interface PageRepositoryService {
 
     PageEntity getPageEntity(String path, SiteEntity siteEntity);
 
-    boolean pageEntityIsPresent(String url, String domain);
+    List<PageEntity> getPageEntityList(SiteEntity siteEntity);
+
+    List<Long> getIdListPageEntity(SiteEntity siteEntity);
+
+    void savePageEntity (PageEntity pageEntity);
+
+    boolean pageEntityIsPresent(String path, String domain);
 
     boolean urlIsUnique(String path, String domain);
 
@@ -28,8 +35,14 @@ public interface PageRepositoryService {
 
     void deletePage(String path, String domain);
 
+    void deleteByIdListPageEntity(List<Long> pageEntityListId);
+
     void addListPageEntity(TreeMap<String, Page> pageList, String domain);
     void addListPageEntity(List<Page> pageList, String domain);
 
+    void addListPageEntity(List<PageEntity> pageEntityList);
+
     int getCountPageBySite(SiteEntity siteEntity);
+
+    void savePageEntityMap(ConcurrentHashMap<String, PageEntity> pageEntityMap);
 }

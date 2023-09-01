@@ -15,6 +15,8 @@ public interface IndexRepositoryService {
 
     void deleteIndexEntity(List<IndexEntity> indexEntityList);
 
+    void deleteByIdListPageEntity(List<Long> pageEntityListId);
+
     void addToIndexEntity(LemmaEntity lemmaEntity, Integer rank, PageEntity pageEntity);
 
     void addIndexEntityList(CopyOnWriteArrayList<IndexEntity> allRank);

@@ -14,9 +14,9 @@ import searchengine.repositories.PageRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeMap;
-import java.util.TreeSet;
-
-import static java.util.stream.IntStream.range;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -31,9 +31,29 @@ public class PageRepositoryServiceImpl implements PageRepositoryService {
     }
 
     @Override
-    public boolean pageEntityIsPresent(String url, String domain) {
+    public List<PageEntity> getPageEntityList(SiteEntity siteEntity) {
+        return pageRepository.findAllBySite(siteEntity).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Long> getIdListPageEntity(SiteEntity siteEntity) {
+        List<Long> idListPageEntity = new ArrayList<>();
+        pageRepository.findAllBySite(siteEntity).forEachOrdered(pageEntity -> {
+            idListPageEntity.add(pageEntity.getId());
+        });
+        return idListPageEntity;
+    }
+
+    @Override
+    @Transactional
+    public synchronized void savePageEntity(PageEntity pageEntity) {
+        pageRepository.saveAndFlush(pageEntity);
+    }
+
+    @Override
+    public boolean pageEntityIsPresent(String path, String domain) {
         SiteEntity siteEntity = siteRepositoryService.getSiteEntityByDomain(domain);
-        return pageRepository.findByPathAndSite(url, siteEntity).isPresent();
+        return pageRepository.findByPathAndSite(path, siteEntity).isPresent();
     }
 
     @Override
@@ -60,7 +80,7 @@ public class PageRepositoryServiceImpl implements PageRepositoryService {
 
     @Override
     @Transactional
-    public void updatePageEntity(Page page) {
+    public void updatePageEntity(@NotNull Page page) {
         SiteEntity siteEntity = siteRepositoryService.updateSiteEntity(page.getDomain());
         PageEntity pageEntity = getPageEntity(page.getPath(), siteEntity);
         if (pageEntity != null) {
@@ -77,19 +97,41 @@ public class PageRepositoryServiceImpl implements PageRepositoryService {
         long id = getPageEntity(path, siteRepositoryService.getSiteEntityByDomain(domain)).getId();
         pageRepository.deleteById(id);
     }
+    @Override
+    @Transactional
+    public void deleteByIdListPageEntity(List<Long> pageEntityListId) {
+        pageRepository.deleteAllById(pageEntityListId);
+    }
 
     @Override
     @Transactional
-    public synchronized void addListPageEntity(List<Page> pageList, String domain) {
+    public synchronized void addListPageEntity(@NotNull List<Page> pageList, String domain) {
         SiteEntity siteEntity = siteRepositoryService.updateSiteEntity(domain);
-        List<PageEntity> pageEntityList = new ArrayList<>();
-        pageList.forEach(page -> {
-                    PageEntity pageEntity = convertPageToPageEntity(page, siteEntity);
-                    pageEntityList.add(pageEntity);
-                }
-        );
+        CopyOnWriteArrayList<PageEntity> pageEntityList = getConvertedPageToPageEntity(pageList, siteEntity);
         pageRepository.saveAll(pageEntityList);
-        System.out.println(pageEntityList.size() + " synchronized void addListPageEntity");
+    }
+
+    @Override
+    @Transactional
+    public synchronized void addListPageEntity(@NotNull List<PageEntity> pageEntityList) {
+        System.out.println(pageEntityList.size() + " before adding");
+        pageRepository.saveAll(pageEntityList);
+    }
+
+    private @NotNull CopyOnWriteArrayList<PageEntity> getConvertedPageToPageEntity(@NotNull List<Page> pageList, SiteEntity siteEntity) {
+        CopyOnWriteArrayList<PageEntity> pageEntityList = new CopyOnWriteArrayList<>();
+        pageList.forEach(page -> {
+            PageEntity pageEntity = new PageEntity();
+            pageEntity.setSite(siteEntity);
+            pageEntity.setPath(page.getPath());
+            pageEntity.setCode(page.getPageStatusCode());
+            pageEntity.setContent(page.getDocument().outerHtml());
+            synchronized (pageEntityList) {
+                pageEntityList.add(pageEntity);
+            }
+        });
+        System.out.println(pageList.size() + " after converting " + pageEntityList.size());
+        return pageEntityList;
     }
 
     @Override
@@ -111,6 +153,14 @@ public class PageRepositoryServiceImpl implements PageRepositoryService {
     @Override
     public int getCountPageBySite(SiteEntity siteEntity) {
         return pageRepository.countBySite(siteEntity);
+    }
+
+    @Override
+    @Transactional
+    public synchronized void savePageEntityMap(@NotNull ConcurrentHashMap<String, PageEntity> pageEntityMap) {
+        List<PageEntity> pageEntityList = pageEntityMap.values().stream().toList();
+        System.out.println(pageEntityList.size() + " before write " + pageEntityMap.size());
+        pageRepository.saveAll(pageEntityList);
     }
 
     @Autowired

@@ -11,4 +11,5 @@ import java.util.List;
 public interface IndexRepository extends JpaRepository<IndexEntity, Long> {
 
     List<IndexEntity> findAllByPage(PageEntity pageEntity);
+
 }

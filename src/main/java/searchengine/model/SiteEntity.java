@@ -3,6 +3,8 @@ package searchengine.model;
 import lombok.*;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -32,12 +34,11 @@ public class SiteEntity  {
     @Column(columnDefinition = "varchar(255)", nullable = false, unique = true)
     private String name;
 
-    @OneToMany(mappedBy = "site", cascade = CascadeType.ALL, targetEntity = PageEntity.class,
-            orphanRemoval = true)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    @OneToMany(mappedBy = "site", targetEntity = PageEntity.class)
     private List<PageEntity> pageEntities = new ArrayList<>();
-
-    @OneToMany(mappedBy = "site", cascade = CascadeType.ALL, targetEntity = PageEntity.class,
-            orphanRemoval = true)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    @OneToMany(mappedBy = "site", targetEntity = PageEntity.class)
     private List<LemmaEntity> lemmaEntities = new ArrayList<>();
 
     public void addPage(PageEntity pageEntity) {

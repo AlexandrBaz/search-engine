@@ -1,4 +1,4 @@
-package searchengine.utils.Parser;
+package searchengine.utils.parser;
 
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
@@ -13,6 +13,7 @@ import searchengine.services.IndexRepositoryService;
 import searchengine.services.LemmaRepositoryService;
 import searchengine.services.PageRepositoryService;
 import searchengine.services.SiteRepositoryService;
+import searchengine.utils.ServiceStore;
 import searchengine.utils.lemma.LemmaFinder;
 
 import java.io.IOException;
@@ -20,13 +21,20 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-public class PageHandler {
+public class PageParser {
     private final static String code4xx5xx = "[45]\\d{2}";
 
     public SiteRepositoryService siteRepositoryService;
     public PageRepositoryService pageRepositoryService;
     public LemmaRepositoryService lemmaRepositoryService;
     public IndexRepositoryService indexRepositoryService;
+
+    public PageParser(ServiceStore serviceStore) {
+        this.siteRepositoryService = serviceStore.getSiteRepositoryService();
+        this.pageRepositoryService = serviceStore.getPageRepositoryService();
+        this.lemmaRepositoryService = serviceStore.getLemmaRepositoryService();
+        this.indexRepositoryService = serviceStore.getIndexRepositoryService();
+    }
 
     //Rewrite Methods
 
@@ -80,23 +88,6 @@ public class PageHandler {
             throw new RuntimeException(e);
         }
         return lemmaOnPage;
-    }
-    @Autowired
-    public void setSiteRepositoryService(SiteRepositoryService siteRepositoryService){
-        this.siteRepositoryService = siteRepositoryService;
-    }
-    @Autowired
-    public void setPageRepositoryService(PageRepositoryService pageRepositoryService){
-        this.pageRepositoryService = pageRepositoryService;
-    }
-    @Autowired
-    public void setLemmaRepositoryService(LemmaRepositoryService lemmaRepositoryService){
-        this.lemmaRepositoryService = lemmaRepositoryService;
-    }
-
-    @Autowired
-    public void setIndexRepositoryService(IndexRepositoryService indexRepositoryService){
-        this.indexRepositoryService = indexRepositoryService;
     }
 
 }

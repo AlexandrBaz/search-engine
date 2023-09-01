@@ -12,7 +12,7 @@ import searchengine.services.IndexRepositoryService;
 import searchengine.services.LemmaRepositoryService;
 import searchengine.services.PageRepositoryService;
 import searchengine.services.SiteRepositoryService;
-import searchengine.utils.ServiceStore;
+import searchengine.utils.parser.SiteRunnable;
 
 import java.io.IOException;
 import java.util.List;
@@ -29,11 +29,11 @@ public class LemmaRank {
     private final IndexRepositoryService indexRepositoryService;
     private CopyOnWriteArrayList<IndexEntity> sliceLemmaRank;
 
-    public LemmaRank(@NotNull ServiceStore serviceStore) {
-        this.siteRepositoryService = serviceStore.getSiteRepositoryService();
-        this.lemmaRepositoryService = serviceStore.getLemmaRepositoryService();
-        this.pageRepositoryService = serviceStore.getPageRepositoryService();
-        this.indexRepositoryService = serviceStore.getIndexRepositoryService();
+    public LemmaRank(@NotNull SiteRunnable siteRunnable) {
+        this.pageRepositoryService = siteRunnable.getPageRepositoryService();
+        this.siteRepositoryService = siteRunnable.getSiteRepositoryService();
+        this.lemmaRepositoryService = siteRunnable.getLemmaRepositoryService();
+        this.indexRepositoryService = siteRunnable.getIndexRepositoryService();
     }
 
     public void lemmaRankBySite(String domain) {

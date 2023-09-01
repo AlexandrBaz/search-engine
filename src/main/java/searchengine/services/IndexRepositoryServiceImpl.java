@@ -44,6 +44,11 @@ public class IndexRepositoryServiceImpl implements IndexRepositoryService{
     public synchronized void addIndexEntityList(CopyOnWriteArrayList<IndexEntity> allRank) {
         indexRepository.saveAll(allRank);
     }
+    @Override
+    @Transactional
+    public synchronized void deleteByIdListPageEntity(List<Long> pageEntityListId) {
+        indexRepository.deleteAllById(pageEntityListId);
+    }
 
     @Autowired
     public void setIndexRepository(IndexRepository indexRepository){

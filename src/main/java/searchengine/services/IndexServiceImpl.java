@@ -1,12 +1,14 @@
 package searchengine.services;
 
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
-import searchengine.utils.Parser.Handler;
-import searchengine.utils.Parser.PageHandler;
-import searchengine.utils.Parser.SiteRunnable;
+import searchengine.model.SiteEntity;
+import searchengine.utils.parser.Parser;
+import searchengine.utils.parser.PageParser;
+import searchengine.utils.parser.SiteRunnable;
 import searchengine.utils.ServiceStore;
 
 import java.util.ArrayList;
@@ -20,28 +22,23 @@ import java.util.concurrent.Future;
 public class IndexServiceImpl implements IndexService {
     private SitesList sitesList;
     private ExecutorService executor;
-    private SiteRepositoryService siteRepositoryService;
     private ServiceStore serviceStore;
-    Handler handler;
-    List<Handler> handlerList = new ArrayList<>();
-
-//    @Autowired
-//    public IndexServiceImpl(SitesList sitesList) {
-//        this.sitesList = sitesList;
-//    }
+    List<Parser> parserList;
 
     @Override
-    public Boolean startIndexing() { // TODO реализовать повторный поиск
+    public Boolean startIndexing() {
         if (!isStarted()) {
+            checkAndDeleteSiteIfPresent(sitesList);
             executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+            parserList = new ArrayList<>();
             sitesList.getSites().forEach(site -> {
                 SiteRunnable worker = new SiteRunnable(site, serviceStore);
                 Future<?> future = executor.submit(worker);
-                handler = new Handler();
-                handler.setDomain(site.getUrl());
-                handler.setFuture(future);
-                handler.setWorker(worker);
-                handlerList.add(handler);
+                Parser parser = new Parser();
+                parser.setDomain(site.getUrl());
+                parser.setFuture(future);
+                parser.setWorker(worker);
+                parserList.add(parser);
             });
             executor.shutdown();
             return true;
@@ -50,13 +47,31 @@ public class IndexServiceImpl implements IndexService {
         }
     }
 
+    private void checkAndDeleteSiteIfPresent(@NotNull SitesList sitesList) {
+        SiteRepositoryService siteRepositoryService = serviceStore.getSiteRepositoryService();
+        IndexRepositoryService indexRepositoryService = serviceStore.getIndexRepositoryService();
+        LemmaRepositoryService lemmaRepositoryService = serviceStore.getLemmaRepositoryService();
+        PageRepositoryService pageRepositoryService = serviceStore.getPageRepositoryService();
+        sitesList.getSites().forEach(site -> {
+            SiteEntity siteEntity = siteRepositoryService.getSiteEntityByDomain(site.getUrl());
+            if (siteEntity != null) {
+                List<Long> pageEntityListId = pageRepositoryService.getIdListPageEntity(siteEntity);
+                indexRepositoryService.deleteByIdListPageEntity(pageEntityListId);
+                lemmaRepositoryService.deleteByIdListPageEntity(pageEntityListId);
+                pageRepositoryService.deleteByIdListPageEntity(pageEntityListId);
+                siteRepositoryService.deleteSiteEntity(siteEntity);
+            }
+        });
+    }
+
 
     @Override
     public Boolean stopIndexing() {
         if (isStarted()) {
-            handlerList.forEach(handler -> {
+            parserList.forEach(handler -> {
                 handler.getWorker().stopForkJoin();
                 if (!handler.getFuture().isDone()) {
+                    SiteRepositoryService siteRepositoryService = serviceStore.getSiteRepositoryService();
                     siteRepositoryService.stopIndexingThisEntity(handler.getDomain());
                 }
             });
@@ -68,8 +83,8 @@ public class IndexServiceImpl implements IndexService {
     }
 
     @Override
-    public Boolean indexPage(String url) {
-        PageHandler pageHandler = new PageHandler();
+    public Boolean indexPage(@NotNull String url) {
+        PageParser pageHandler = new PageParser(serviceStore);
         String domain = sitesList.getSites().stream()
                 .map(Site::getUrl)
                 .filter(url::contains)
@@ -84,27 +99,24 @@ public class IndexServiceImpl implements IndexService {
     }
 
 
-    public boolean isStarted() {
-        for (Handler hand : handlerList) {
-            if (!hand.getFuture().isDone()) {
-                return true;
+    private boolean isStarted() {
+        if (parserList != null) {
+            for (Parser parser : parserList) {
+                if (!parser.getFuture().isDone()) {
+                    return true;
+                }
             }
         }
         return false;
     }
 
     @Autowired
-    public void setSiteRepositoryService(SiteRepositoryService siteRepositoryService){
-        this.siteRepositoryService = siteRepositoryService;
-    }
-
-    @Autowired
-    public void setSitesList(SitesList sitesList){
+    public void setSitesList(SitesList sitesList) {
         this.sitesList = sitesList;
     }
 
     @Autowired
-    public void setServiceStore(ServiceStore serviceStore){
+    public void setServiceStore(ServiceStore serviceStore) {
         this.serviceStore = serviceStore;
     }
 }

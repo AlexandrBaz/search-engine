@@ -4,6 +4,8 @@ import lombok.*;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +37,7 @@ public class PageEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(nullable = false, unique = true)
     private Long Id;
+    @OnDelete(action = OnDeleteAction.CASCADE)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "site_id", nullable = false)
     SiteEntity site;
@@ -47,7 +50,8 @@ public class PageEntity {
     @Column(length = 16777215, columnDefinition = "mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci", name = "content", nullable = true)
     private String content;
 
-    @OneToMany(mappedBy = "page", cascade = CascadeType.ALL, targetEntity = IndexEntity.class, orphanRemoval = true)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    @OneToMany(mappedBy = "page", targetEntity = IndexEntity.class)
     private List<IndexEntity> indexPageEntities = new ArrayList<>();
 
     public void addIndex(IndexEntity indexEntity) {
