@@ -34,7 +34,7 @@ public class PageEntity {
 //            strategy = GenerationType.SEQUENCE,
 //            generator = "sequenceGenerator"
 //    )
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(nullable = false, unique = true)
     private Long Id;
     @OnDelete(action = OnDeleteAction.CASCADE)

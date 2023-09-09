@@ -1,5 +1,6 @@
 package searchengine.controllers;
 
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -8,7 +9,9 @@ import searchengine.dto.index.Response;
 import searchengine.dto.index.TrueResponse;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.services.IndexService;
+import searchengine.services.SearchService;
 import searchengine.services.StatisticsService;
+
 
 @RestController
 @RequestMapping("/api")
@@ -16,12 +19,14 @@ public class ApiController {
 
     private final StatisticsService statisticsService;
     private final IndexService indexService;
+    private final SearchService searchService;
     private Response response;
 
     @Autowired
-    public ApiController(StatisticsService statisticsService, IndexService indexService) {
+    public ApiController(StatisticsService statisticsService, IndexService indexService, SearchService searchService) {
         this.statisticsService = statisticsService;
         this.indexService = indexService;
+        this.searchService = searchService;
     }
 
     @GetMapping("/statistics")
@@ -55,5 +60,20 @@ public class ApiController {
             response = new FalseResponse(false,"Данная страница находится за пределами сайтов, указанных в конфигурационном файле");
         }
         return response;
+    }
+
+    @GetMapping("/search")
+    public Response searchQuery(@RequestParam (name = "query") @NotNull String query,
+                                @RequestParam (name = "site", defaultValue = "all") String site,
+                                @RequestParam (name = "offset", defaultValue = "0") Integer offset,
+                                @RequestParam (name = "limit", defaultValue = "10") Integer limit) {
+        if (!query.isBlank()){
+            response = searchService.getPages(query, site, offset, limit);
+
+        } else {
+            response = new FalseResponse(false, "Задан пустой поисковый запрос");
+        }
+        return response;
+
     }
 }

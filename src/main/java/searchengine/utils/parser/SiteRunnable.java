@@ -7,11 +7,14 @@ import org.springframework.stereotype.Component;
 import searchengine.config.Site;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
+import searchengine.model.Status;
 import searchengine.services.IndexRepositoryService;
 import searchengine.services.LemmaRepositoryService;
 import searchengine.services.PageRepositoryService;
 import searchengine.services.SiteRepositoryService;
 import searchengine.utils.ServiceStore;
+import searchengine.utils.lemma.LemmaCollect;
+import searchengine.utils.lemma.LemmaRank;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -52,7 +55,7 @@ public class SiteRunnable implements Runnable {
 
     @Override
     public void run() {
-        siteRepositoryService.createSite(site);
+        siteRepositoryService.createSite(site, Status.INDEXING);
         long start = System.currentTimeMillis();
 //        siteParser = new SiteParser(Collections.singletonList(site.getUrl()), this);
         siteParserBatch = new SiteParserBatch(Collections.singletonList(site.getUrl()), pageEntityMap, this);
@@ -64,10 +67,10 @@ public class SiteRunnable implements Runnable {
             log.info("completed " + site.getUrl() + " Time Elapsed -> " + (start - System.currentTimeMillis()) + " ms");
             log.info(uniqUrl.size() + " from SiteRunnable");
         }
-//        new LemmaCollect(this).collectMapsLemmas(getSiteEntity());
-//        log.info("lemma finder completed for " + site.getUrl() + " Time Elapsed -> " + (start-System.currentTimeMillis()) + " ms");
-//        new LemmaRank(this).lemmaRankBySite(site.getUrl());
-//        log.info("rank completed for " + site.getUrl() + " Time Elapsed -> " + (start-System.currentTimeMillis()) + " ms");
+        new LemmaCollect(this).collectMapsLemmas(getSiteEntity());
+        log.info("lemma finder completed for " + site.getUrl() + " Time Elapsed -> " + (start-System.currentTimeMillis()) + " ms");
+        new LemmaRank(this).lemmaRankBySite(site.getUrl());
+        log.info("rank completed for " + site.getUrl() + " Time Elapsed -> " + (start-System.currentTimeMillis()) + " ms");
         siteRepositoryService.siteIndexComplete(site.getUrl());
     }
 

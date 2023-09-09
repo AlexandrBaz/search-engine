@@ -1,5 +1,6 @@
 package searchengine.services;
 
+import com.fasterxml.jackson.databind.util.EnumValues;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -14,7 +15,7 @@ import java.util.List;
 
 @Service("SiteRepositoryServiceImpl")
 @Transactional(readOnly = true)
-public class SiteRepositoryServiceImpl implements SiteRepositoryService{
+public class SiteRepositoryServiceImpl implements SiteRepositoryService {
 
     private SiteRepository siteRepository;
 
@@ -30,16 +31,23 @@ public class SiteRepositoryServiceImpl implements SiteRepositoryService{
 
     @Override
     @Transactional
-    public synchronized void createSite(@NotNull Site site) {
-        if (getSiteEntityByDomain(site.getUrl())==null) {
+    public synchronized void createSite(@NotNull Site site, Status status) {
+        if (getSiteEntityByDomain(site.getUrl()) == null) {
             SiteEntity newSiteEntity = new SiteEntity();
             newSiteEntity.setName(site.getName());
             newSiteEntity.setUrl(site.getUrl());
-            newSiteEntity.setStatus(Status.INDEXING);
+            newSiteEntity.setStatus(status);
             newSiteEntity.setStatusTime(LocalDateTime.now());
             newSiteEntity.setLastError(null);
             siteRepository.saveAndFlush(newSiteEntity);
         }
+    }
+
+    @Override
+    @Transactional
+    public synchronized void updateSite(@NotNull SiteEntity siteEntity) {
+        siteEntity.setStatusTime(LocalDateTime.now());
+        siteRepository.save(siteEntity);
     }
 
     @Override
@@ -92,8 +100,13 @@ public class SiteRepositoryServiceImpl implements SiteRepositoryService{
         return siteRepository.findByUrl(domain).isPresent();
     }
 
+    @Override
+    public List<SiteEntity> getSiteByStatus(Status indexed) {
+        return siteRepository.findByStatus(indexed);
+    }
+
     @Autowired
-    public void setSiteRepository(SiteRepository siteRepository){
+    public void setSiteRepository(SiteRepository siteRepository) {
         this.siteRepository = siteRepository;
     }
 }

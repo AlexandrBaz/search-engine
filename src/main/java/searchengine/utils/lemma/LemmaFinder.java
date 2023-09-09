@@ -2,10 +2,12 @@ package searchengine.utils.lemma;
 
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
+import org.jetbrains.annotations.NotNull;
 import org.jsoup.*;
 import org.jsoup.nodes.Document;
 import org.jsoup.safety.Safelist;
 import org.jsoup.select.Elements;
+import searchengine.model.PageEntity;
 
 import java.io.IOException;
 import java.util.*;
@@ -110,7 +112,7 @@ public class LemmaFinder {
         return pageParts;
     }
 
-    private boolean anyWordBaseBelongToParticle(List<String> wordBaseForms) {
+    private boolean anyWordBaseBelongToParticle(@NotNull List<String> wordBaseForms) {
         return wordBaseForms.stream().anyMatch(this::hasParticleProperty);
     }
 
@@ -123,7 +125,7 @@ public class LemmaFinder {
         return false;
     }
 
-    private String[] arrayContainsRussianWords(String text) {
+    private String @NotNull [] arrayContainsRussianWords(@NotNull String text) {
         return text.toLowerCase(Locale.ROOT)
                 .replaceAll("[ёЁ]", "е")
                 .replaceAll("([^а-я\\s])", " ")
@@ -141,7 +143,32 @@ public class LemmaFinder {
         return true;
     }
 
-    public String StripHtml(String html) {
-        return Jsoup.clean(html, Safelist.simpleText().removeTags("trashHtmlTags"));
+    public @NotNull ConcurrentHashMap<String, Float> getAllIndexRankOfPage(@NotNull PageEntity pageEntity) {
+        ConcurrentHashMap<String, Float> pageIndexMap = new ConcurrentHashMap<>();
+        partitionDocument(pageEntity.getContent()).forEach((partName, text) -> {
+            ConcurrentHashMap<String, Float> lemmaFromPagePart = switch (partName) {
+                case ("title") -> getLemmaFromPagePart(text, IndexLemmaRank.TITLE.getMultiplier());
+                case ("description") -> getLemmaFromPagePart(text, IndexLemmaRank.DESCRIPTION.getMultiplier());
+                case ("h1Elements") -> getLemmaFromPagePart(text, IndexLemmaRank.H1ELEMENTS.getMultiplier());
+                case ("h2Elements") -> getLemmaFromPagePart(text, IndexLemmaRank.H2ELEMENTS.getMultiplier());
+                case ("footer") -> getLemmaFromPagePart(text, IndexLemmaRank.FOOTER.getMultiplier());
+                default -> getLemmaFromPagePart(text, IndexLemmaRank.BODY.getMultiplier());
+            };
+            lemmaFromPagePart.forEach((lemma, rank) -> {
+                if (pageIndexMap.containsKey(lemma)) {
+                    pageIndexMap.computeIfPresent(lemma, (key, value) -> value + rank);
+                } else {
+                    pageIndexMap.put(lemma, rank);
+                }
+            });
+        });
+        return pageIndexMap;
+    }
+
+    private @NotNull ConcurrentHashMap<String, Float> getLemmaFromPagePart(String partOfPage, Float lemmaMultiplier) {
+        Map<String, Integer> temporaryMap = collectLemmas(partOfPage);
+        ConcurrentHashMap<String, Float> finalMap = new ConcurrentHashMap<>();
+        temporaryMap.forEach((key, value) -> finalMap.put(key, value * lemmaMultiplier));
+        return finalMap;
     }
 }

@@ -28,7 +28,10 @@ public class LemmaRepositoryServiceImpl implements LemmaRepositoryService{
     @Override
     @Transactional
     public void deleteLemmaOnPage(@NotNull List<IndexEntity> indexEntityList) {
+        System.out.println(indexEntityList.size() + " indexEntityList");
         indexEntityList.forEach(indexEntity -> {
+            System.out.println(indexEntity.getLemma().getLemma() + " Lemma" + indexEntity.getLemma().getSite().getUrl());
+            System.out.println("Url " + indexEntity.getLemma().getSite().getUrl());
             LemmaEntity lemmaEntity = lemmaRepository.findByLemmaAndSite(indexEntity.getLemma().getLemma(), indexEntity.getLemma().getSite()).orElse(null);
             if (Objects.requireNonNull(lemmaEntity).getFrequency() == 1) {
                 lemmaRepository.deleteById(indexEntity.getLemma().getId());
@@ -36,6 +39,7 @@ public class LemmaRepositoryServiceImpl implements LemmaRepositoryService{
                 lemmaEntity.setFrequency(lemmaEntity.getFrequency() - 1);
                 lemmaRepository.saveAndFlush(lemmaEntity);
             }
+
         });
     }
 
@@ -63,7 +67,7 @@ public class LemmaRepositoryServiceImpl implements LemmaRepositoryService{
     @Override
     @Transactional
     public synchronized void deleteByIdListPageEntity(List<Long> pageEntityListId) {
-        lemmaRepository.deleteAllById(pageEntityListId);
+        lemmaRepository.deleteAllByIdInBatch(pageEntityListId);
 
     }
 
@@ -74,9 +78,8 @@ public class LemmaRepositoryServiceImpl implements LemmaRepositoryService{
 
     @Override
     @Transactional
-    public synchronized void addLemmaEntityList(@NotNull Map<String, LemmaEntity> mapLemmaEntity) {
-        List<LemmaEntity> lemmaEntities = mapLemmaEntity.values().stream().toList();
-        lemmaRepository.saveAll(lemmaEntities);
+    public synchronized void addLemmaEntityList(@NotNull List<LemmaEntity> lemmaEntityList) {
+        lemmaRepository.saveAllAndFlush(lemmaEntityList);
     }
 
     @Override
@@ -84,12 +87,24 @@ public class LemmaRepositoryServiceImpl implements LemmaRepositoryService{
         return lemmaRepository.countBySite(siteEntity);
     }
 
-// Worked Methods
-//    public void addToIndexEntity(String lemma, Integer rank, PageEntity pageEntity) {// this IndexEntity
-//        SiteEntity siteEntity = pageEntity.getSite();
-//        LemmaEntity lemmaEntity = lemmaRepository.findByLemmaAndSite(lemma, siteEntity).orElse(null);
-//        indexEntityDAO.addIndex(lemmaEntity, rank, pageEntity);
-//    }
+    @Override
+    @Transactional
+    public void addPageLemmaEntityList(@NotNull List<LemmaEntity> lemmaEntityList) {
+        lemmaEntityList.forEach(lemmaEntity -> {
+            LemmaEntity presentedLemma = getLemmaEntity(lemmaEntity.getLemma(), lemmaEntity.getSite());
+            if (presentedLemma != null){
+                presentedLemma.setFrequency(presentedLemma.getFrequency() + 1);
+                lemmaRepository.saveAndFlush(presentedLemma);
+            } else {
+                lemmaRepository.saveAndFlush(lemmaEntity);
+            }
+        });
+    }
+
+    @Override
+    public long getCountLemmaByLemmaAndSite(String query, SiteEntity siteEntity) {
+        return lemmaRepository.countByLemmaAndSite(query, siteEntity);
+    }
 
     @Autowired
     public void setLemmaRepository(LemmaRepository lemmaRepository){

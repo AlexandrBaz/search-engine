@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
 import searchengine.model.SiteEntity;
+import searchengine.model.Status;
 import searchengine.utils.parser.Parser;
 import searchengine.utils.parser.PageParser;
 import searchengine.utils.parser.SiteRunnable;
@@ -23,6 +24,8 @@ public class IndexServiceImpl implements IndexService {
     private SitesList sitesList;
     private ExecutorService executor;
     private ServiceStore serviceStore;
+
+    private IndexServiceAsync indexServiceAsync;
     List<Parser> parserList;
 
     @Override
@@ -84,14 +87,12 @@ public class IndexServiceImpl implements IndexService {
 
     @Override
     public Boolean indexPage(@NotNull String url) {
-        PageParser pageHandler = new PageParser(serviceStore);
-        String domain = sitesList.getSites().stream()
-                .map(Site::getUrl)
-                .filter(url::contains)
+        Site site = sitesList.getSites().stream()
+                .filter(site1 -> url.contains(site1.getUrl()))
                 .findFirst()
                 .orElse(null);
-        if (domain != null) {
-            pageHandler.addUpdatePage(url, domain);
+        if (site != null) {
+            indexServiceAsync.parsePage(url, site);
             return true;
         } else {
             return false;
@@ -119,4 +120,7 @@ public class IndexServiceImpl implements IndexService {
     public void setServiceStore(ServiceStore serviceStore) {
         this.serviceStore = serviceStore;
     }
+
+    @Autowired
+    public void setIndexServiceAsync(IndexServiceAsync indexServiceAsync){this.indexServiceAsync = indexServiceAsync;}
 }

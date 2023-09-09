@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import searchengine.model.IndexEntity;
 import searchengine.model.LemmaEntity;
 import searchengine.model.PageEntity;
+import searchengine.model.SiteEntity;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -20,4 +21,10 @@ public interface IndexRepositoryService {
     void addToIndexEntity(LemmaEntity lemmaEntity, Integer rank, PageEntity pageEntity);
 
     void addIndexEntityList(CopyOnWriteArrayList<IndexEntity> allRank);
+
+    long getCountIndexByLemmaAndSite(LemmaEntity lemmaEntity, SiteEntity siteEntity);
+
+    List<IndexEntity> getListIndexEntityByLemma(LemmaEntity lemmaEntity);
+
+    IndexEntity getIndexEntity(LemmaEntity lemmaEntity, PageEntity pageEntity);
 }

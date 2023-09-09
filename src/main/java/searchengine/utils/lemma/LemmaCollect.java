@@ -39,7 +39,8 @@ public class LemmaCollect {
             slice.getContent().stream().parallel().forEach(this::setLemma);
         }
         long end = System.currentTimeMillis();
-        lemmaRepositoryService.addLemmaEntityList(mapLemmaEntity);
+        List<LemmaEntity> lemmaEntities = mapLemmaEntity.values().stream().toList();
+        lemmaRepositoryService.addLemmaEntityList(lemmaEntities);
         log.info("Time elapsed " + (end - start) + " ms. Collect lemma");
 
     }

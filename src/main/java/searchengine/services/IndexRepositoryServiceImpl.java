@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.IndexEntity;
 import searchengine.model.LemmaEntity;
 import searchengine.model.PageEntity;
+import searchengine.model.SiteEntity;
 import searchengine.repositories.IndexRepository;
 
 import java.util.List;
@@ -42,12 +43,28 @@ public class IndexRepositoryServiceImpl implements IndexRepositoryService{
     @Override
     @Transactional
     public synchronized void addIndexEntityList(CopyOnWriteArrayList<IndexEntity> allRank) {
-        indexRepository.saveAll(allRank);
+        indexRepository.saveAllAndFlush(allRank);
     }
+
+    @Override
+    public long getCountIndexByLemmaAndSite(LemmaEntity lemmaEntity, SiteEntity siteEntity) {
+        return 0;
+    }
+
+    @Override
+    public List<IndexEntity> getListIndexEntityByLemma(LemmaEntity lemmaEntity) {
+        return indexRepository.findByLemma(lemmaEntity);
+    }
+
+    @Override
+    public IndexEntity getIndexEntity(LemmaEntity lemmaEntity, PageEntity pageEntity) {
+        return indexRepository.findByLemmaAndPage(lemmaEntity,pageEntity).orElse(null);
+    }
+
     @Override
     @Transactional
     public synchronized void deleteByIdListPageEntity(List<Long> pageEntityListId) {
-        indexRepository.deleteAllById(pageEntityListId);
+        indexRepository.deleteAllByIdInBatch(pageEntityListId);
     }
 
     @Autowired

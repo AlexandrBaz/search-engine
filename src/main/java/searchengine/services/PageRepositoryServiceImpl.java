@@ -6,16 +6,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import searchengine.dto.parser.Page;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
 import searchengine.repositories.PageRepository;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 @Service
@@ -38,9 +35,7 @@ public class PageRepositoryServiceImpl implements PageRepositoryService {
     @Override
     public List<Long> getIdListPageEntity(SiteEntity siteEntity) {
         List<Long> idListPageEntity = new ArrayList<>();
-        pageRepository.findAllBySite(siteEntity).forEachOrdered(pageEntity -> {
-            idListPageEntity.add(pageEntity.getId());
-        });
+        pageRepository.findAllBySite(siteEntity).forEachOrdered(pageEntity -> idListPageEntity.add(pageEntity.getId()));
         return idListPageEntity;
     }
 
@@ -65,89 +60,22 @@ public class PageRepositoryServiceImpl implements PageRepositoryService {
     public Slice<PageEntity> getSliceOfPages(SiteEntity siteEntity, Pageable pageable) {
         return pageRepository.findAllBySite(siteEntity, pageable);
     }
-
     @Override
     @Transactional
-    public void addPage(Page page) {
-        SiteEntity siteEntity = siteRepositoryService.updateSiteEntity(page.getDomain());
-        PageEntity pageEntity = new PageEntity();
-        pageEntity.setCode(page.getPageStatusCode());
-        pageEntity.setPath(page.getPath());
-        pageEntity.setContent(page.getDocument().outerHtml());
-        pageEntity.setSite(siteEntity);
-        pageRepository.saveAndFlush(pageEntity);
-    }
+    public void deletePage(PageEntity pageEntity) {
+        pageRepository.delete(pageEntity);
 
-    @Override
-    @Transactional
-    public void updatePageEntity(@NotNull Page page) {
-        SiteEntity siteEntity = siteRepositoryService.updateSiteEntity(page.getDomain());
-        PageEntity pageEntity = getPageEntity(page.getPath(), siteEntity);
-        if (pageEntity != null) {
-            pageEntity.setCode(page.getPageStatusCode());
-            pageEntity.setContent(page.getDocument().outerHtml());
-            pageEntity.setSite(siteEntity);
-            pageRepository.saveAndFlush(pageEntity);
-        }
-    }
-
-    @Override
-    @Transactional
-    public void deletePage(String path, String domain) {
-        long id = getPageEntity(path, siteRepositoryService.getSiteEntityByDomain(domain)).getId();
-        pageRepository.deleteById(id);
     }
     @Override
     @Transactional
     public void deleteByIdListPageEntity(List<Long> pageEntityListId) {
-        pageRepository.deleteAllById(pageEntityListId);
-    }
-
-    @Override
-    @Transactional
-    public synchronized void addListPageEntity(@NotNull List<Page> pageList, String domain) {
-        SiteEntity siteEntity = siteRepositoryService.updateSiteEntity(domain);
-        CopyOnWriteArrayList<PageEntity> pageEntityList = getConvertedPageToPageEntity(pageList, siteEntity);
-        pageRepository.saveAll(pageEntityList);
+        pageRepository.deleteAllByIdInBatch(pageEntityListId);
     }
 
     @Override
     @Transactional
     public synchronized void addListPageEntity(@NotNull List<PageEntity> pageEntityList) {
-        System.out.println(pageEntityList.size() + " before adding");
-        pageRepository.saveAll(pageEntityList);
-    }
-
-    private @NotNull CopyOnWriteArrayList<PageEntity> getConvertedPageToPageEntity(@NotNull List<Page> pageList, SiteEntity siteEntity) {
-        CopyOnWriteArrayList<PageEntity> pageEntityList = new CopyOnWriteArrayList<>();
-        pageList.forEach(page -> {
-            PageEntity pageEntity = new PageEntity();
-            pageEntity.setSite(siteEntity);
-            pageEntity.setPath(page.getPath());
-            pageEntity.setCode(page.getPageStatusCode());
-            pageEntity.setContent(page.getDocument().outerHtml());
-            synchronized (pageEntityList) {
-                pageEntityList.add(pageEntity);
-            }
-        });
-        System.out.println(pageList.size() + " after converting " + pageEntityList.size());
-        return pageEntityList;
-    }
-
-    @Override
-    @Transactional
-    public synchronized void addListPageEntity(@NotNull TreeMap<String, Page> pageList, String domain) {
-        System.out.println("start adding");
-        SiteEntity siteEntity = siteRepositoryService.updateSiteEntity(domain);
-        List<PageEntity> pageEntityList = new ArrayList<>();
-        pageList.forEach((k, v) -> {
-            pageEntityList.add(convertPageToPageEntity(v, siteEntity));
-//            pageRepository.save(convertPageToPageEntity(v, siteEntity));
-        });
-        System.out.println(pageEntityList.size() + " from addListPageEntity " + Thread.currentThread().getName());
-        pageRepository.saveAll(pageEntityList);
-        System.out.println(pageEntityList.size() + " end addListPageEntity " + Thread.currentThread().getName());
-
+        pageRepository.saveAllAndFlush(pageEntityList);
     }
 
     @Override
@@ -160,7 +88,7 @@ public class PageRepositoryServiceImpl implements PageRepositoryService {
     public synchronized void savePageEntityMap(@NotNull ConcurrentHashMap<String, PageEntity> pageEntityMap) {
         List<PageEntity> pageEntityList = pageEntityMap.values().stream().toList();
         System.out.println(pageEntityList.size() + " before write " + pageEntityMap.size());
-        pageRepository.saveAll(pageEntityList);
+        pageRepository.saveAllAndFlush(pageEntityList);
     }
 
     @Autowired
@@ -171,14 +99,5 @@ public class PageRepositoryServiceImpl implements PageRepositoryService {
     @Autowired
     public void setSiteRepositoryService(SiteRepositoryService siteRepositoryService) {
         this.siteRepositoryService = siteRepositoryService;
-    }
-
-    private synchronized @NotNull PageEntity convertPageToPageEntity(@NotNull Page page, SiteEntity siteEntity) {
-        PageEntity pageEntity = new PageEntity();
-        pageEntity.setSite(siteEntity);
-        pageEntity.setPath(page.getPath());
-        pageEntity.setCode(page.getPageStatusCode());
-        pageEntity.setContent(page.getDocument().outerHtml());
-        return pageEntity;
     }
 }

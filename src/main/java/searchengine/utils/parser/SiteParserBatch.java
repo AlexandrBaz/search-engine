@@ -8,7 +8,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
-import searchengine.services.PageRepositoryService;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -24,9 +23,7 @@ public class SiteParserBatch extends RecursiveAction {
 
     private final List<String> listUrlsToParse;
     private final String domain;
-    private final PageRepositoryService pageRepositoryService;
     private final Set<String> uniqUrl;
-    private CopyOnWriteArrayList<SiteParserBatch> listSiteParsersBatch;
     private final ConcurrentHashMap<String, PageEntity> pageEntityMap;
     private final Set<String> pageEntityAlreadyParsed;
     private final SiteEntity siteEntity;
@@ -41,15 +38,13 @@ public class SiteParserBatch extends RecursiveAction {
         this.uniqUrl = siteRunnable.getUniqUrl();
         this.pageEntityMap = pageEntityMap;
         this.pageEntityAlreadyParsed = siteRunnable.getPageEntityAlreadyParsed();
-        this.listSiteParsersBatch = new CopyOnWriteArrayList<>();
         this.siteEntity = siteRunnable.getSiteEntity();
-        this.pageRepositoryService = siteRunnable.getPageRepositoryService();
     }
 
     @Override
     protected void compute() {
         if (parseActive()) {
-            listSiteParsersBatch = getTasksAndFork();
+            CopyOnWriteArrayList<SiteParserBatch> listSiteParsersBatch = getTasksAndFork();
             for (SiteParserBatch task : listSiteParsersBatch) {
                 task.join();
             }
@@ -104,7 +99,6 @@ public class SiteParserBatch extends RecursiveAction {
 
     private @NotNull List<String> parseUrl(@NotNull String url) {
         List<String> urlList = new CopyOnWriteArrayList<>();
-        System.out.println("get document for url " + url);
         if (!pageEntityAlreadyParsed.contains(url) && !uniqUrl.contains(url)) {
             pageEntityAlreadyParsed.add(url);
             threadSleep();
@@ -135,25 +129,22 @@ public class SiteParserBatch extends RecursiveAction {
     }
 
     private void createPage(@NotNull Document document, @NotNull String url, int statusCode) {
-        synchronized (pageEntityMap) {
-            System.out.println("put document for url " + url);
-            if (!uniqUrl.contains(url)) {
-                PageEntity pageEntity = new PageEntity();
-                pageEntity.setSite(siteEntity);
-                pageEntity.setPath(url.replaceAll(domain, "/"));
-                pageEntity.setCode(statusCode);
-                pageEntity.setContent(document.outerHtml());
-                pageEntityMap.put(url, pageEntity);
-                uniqUrl.add(url);
-                System.out.println("put completed " + url);
-            }
-            if (pageEntityMap.size() == 100) {
-                log.info("total uniqUrl: " + uniqUrl.size() + " " + pageEntityMap.size());
-                List<PageEntity> pageEntityList = new ArrayList<>(pageEntityMap.values().stream().toList());
-                pageEntityMap.clear();
-                pageRepositoryService.addListPageEntity(pageEntityList);
-                pageEntityList.clear();
-            }
+        if (!uniqUrl.contains(url)) {
+            PageEntity pageEntity = new PageEntity();
+            pageEntity.setSite(siteEntity);
+            pageEntity.setPath(url.replaceAll(domain, "/"));
+            pageEntity.setCode(statusCode);
+            pageEntity.setContent(document.outerHtml());
+            pageEntityMap.put(url, pageEntity);
+            uniqUrl.add(url);
+        }
+        if (pageEntityMap.size() == 100) {
+            log.info("total uniqUrl: " + uniqUrl.size() + " " + pageEntityMap.size());
+            List<PageEntity> pageEntityList = new ArrayList<>(pageEntityMap.values().stream().toList());
+            pageEntityMap.clear();
+            siteRunnable.getPageRepositoryService().addListPageEntity(pageEntityList);
+            siteRunnable.getSiteRepositoryService().updateSite(siteEntity);
+            pageEntityList.clear();
         }
     }
 }

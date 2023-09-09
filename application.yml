@@ -14,14 +14,14 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         generate_statistics: false
-        order_inserts: true
         jdbc:
-          batch_size: 100
+          order_inserts: true
+          batch_size: 200
 
 
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
 
 indexing-settings:
   sites:
@@ -34,10 +34,10 @@ indexing-settings:
       name: et-cetera.ru
     - url: https://dombulgakova.ru/
       name: https://dombulgakova.ru/
-    - url: https://playback.ru/
-      name: https://playback.ru/
-    - url: https://skillbox.ru/
-      name: https://skillbox.ru/
+#    - url: https://playback.ru/
+#      name: https://playback.ru/
+#    - url: https://skillbox.ru/
+#      name: https://skillbox.ru/
 
 
 jsoup-setting:

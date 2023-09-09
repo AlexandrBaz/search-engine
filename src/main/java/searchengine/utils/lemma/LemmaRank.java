@@ -60,7 +60,7 @@ public class LemmaRank {
 
     }
 
-    private ConcurrentHashMap<String, Float> getAllIndexRankOfPage(@NotNull PageEntity pageEntity) {
+    private @NotNull ConcurrentHashMap<String, Float> getAllIndexRankOfPage(@NotNull PageEntity pageEntity) {
         ConcurrentHashMap<String, Float> pageIndexMap = new ConcurrentHashMap<>();
         try {
             LemmaFinder lemmaFinder = LemmaFinder.getInstance();

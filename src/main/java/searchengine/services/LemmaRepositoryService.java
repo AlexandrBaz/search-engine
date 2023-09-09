@@ -21,7 +21,11 @@ public interface LemmaRepositoryService {
 
     List<LemmaEntity> getAllLemmaEntityBySiteEntity(SiteEntity siteEntity);
 
-    void addLemmaEntityList(Map<String, LemmaEntity> mapLemmaEntity);
+    void addLemmaEntityList(List<LemmaEntity> lemmaEntityList);
 
     int getCountLemmaBySite(SiteEntity siteEntity);
+
+    void addPageLemmaEntityList(List<LemmaEntity> lemmaEntityList);
+
+    long getCountLemmaByLemmaAndSite(String query, SiteEntity siteEntity);
 }

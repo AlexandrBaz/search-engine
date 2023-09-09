@@ -18,7 +18,7 @@ import java.util.Objects;
 @NoArgsConstructor
 public class LemmaEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(nullable = false, unique = true)
     private long id;
 
