@@ -1,25 +1,49 @@
 server:
   port: 8080
+
 spring:
+
   datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
     password: 1Parolef*
     url: jdbc:mysql://localhost:3306/search_engine?useSSL=false&requireSSL=false&allowPublicKeyRetrieval=true
+
   jpa:
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQL8Dialect
+        dialect: org.hibernate.dialect.MySQLDialect
+        generate_statistics: false
+        jdbc:
+          order_inserts: true
+          batch_size: 200
+
+
     hibernate:
       ddl-auto: update
-    show-sql: true
-
-userAgent: Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:25.0) Gecko/20100101 Firefox/25.0
-referrer: https://www:google:com
+    show-sql: false
 
 indexing-settings:
   sites:
 
+#    - url: https://nopaper.ru/
+#      name: https://nopaper.ru/
+#    - url: https://radiomv.ru/
+#      name: https://radiomv.ru/
     - url: https://et-cetera.ru/mobile/
       name: et-cetera.ru
-#    - url: https://nikoartgallery.com/
-#      name: https://nikoartgallery.com/
+    - url: https://dombulgakova.ru/
+      name: https://dombulgakova.ru/
+#    - url: https://playback.ru/
+#      name: https://playback.ru/
+#    - url: https://skillbox.ru/
+#      name: https://skillbox.ru/
+
+
+jsoup-setting:
+  Jsoup:
+    userAgent: Mozilla/5.0 (Windows; U; Windows NT 6.1; ru-RU) AppleWebKit/534.16 (KHTML, like Gecko) Chrome/10.0.648.11 Safari/534.16
+    referrer: https://www:google.com
+    timeout: 10000
+    ignoreHttpErrors: true
+    followRedirects: false

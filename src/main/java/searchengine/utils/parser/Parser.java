@@ -1,11 +1,11 @@
-package searchengine.services.sitehandler;
+package searchengine.utils.parser;
 
 import lombok.*;
 
 import java.util.concurrent.Future;
 
 @Data
-public class Handler {
+public class Parser {
     String domain;
     Future<?> future;
     SiteRunnable worker;
