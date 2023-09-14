@@ -22,23 +22,17 @@ import java.util.concurrent.locks.ReentrantLock;
 public class SiteParserBatch extends RecursiveAction {
 
     private final List<String> listUrlsToParse;
-    private final String domain;
     private final Set<String> uniqUrl;
-    private final ConcurrentHashMap<String, PageEntity> pageEntityMap;
     private final Set<String> pageEntityAlreadyParsed;
-    private final SiteEntity siteEntity;
     private final SiteRunnable siteRunnable;
     ReentrantLock lock = new ReentrantLock();
 
 
-    public SiteParserBatch(List<String> listUrlsToParse, ConcurrentHashMap<String, PageEntity> pageEntityMap, @NotNull SiteRunnable siteRunnable) {
+    public SiteParserBatch(List<String> listUrlsToParse, @NotNull SiteRunnable siteRunnable) {
         this.listUrlsToParse = listUrlsToParse;
         this.siteRunnable = siteRunnable;
-        this.domain = siteRunnable.getDomain();
         this.uniqUrl = siteRunnable.getUniqUrl();
-        this.pageEntityMap = pageEntityMap;
         this.pageEntityAlreadyParsed = siteRunnable.getPageEntityAlreadyParsed();
-        this.siteEntity = siteRunnable.getSiteEntity();
     }
 
     @Override
@@ -61,7 +55,7 @@ public class SiteParserBatch extends RecursiveAction {
             try {
                 if (urlIsValidAndUnique(modifiedUrl)) {
                     List<String> nextListUrToParse = parseUrl(modifiedUrl);
-                    SiteParserBatch siteParserBatch = new SiteParserBatch(nextListUrToParse, pageEntityMap, siteRunnable);
+                    SiteParserBatch siteParserBatch = new SiteParserBatch(nextListUrToParse, siteRunnable);
                     siteParserBatch.fork();
                     tasks.add(siteParserBatch);
                     log.info(pageEntityAlreadyParsed.size() + " pageEntityAlreadyParsed " + modifiedUrl);
@@ -80,7 +74,7 @@ public class SiteParserBatch extends RecursiveAction {
     private boolean urlIsValid(@NotNull String url) {
         String mediaRegex = "(.*/)*.+\\.(png|jpg|gif|bmp|jpeg|PNG|JPG|GIF|BMP|pdf|php|zip)$|[?|#]";
         return !url.matches(mediaRegex)
-                && url.startsWith(domain)
+                && url.startsWith(siteRunnable.getDomain())
                 && (url.endsWith("/")
                 || url.endsWith("html"));
     }
@@ -129,15 +123,21 @@ public class SiteParserBatch extends RecursiveAction {
     }
 
     private void createPage(@NotNull Document document, @NotNull String url, int statusCode) {
+        ConcurrentHashMap<String, PageEntity> pageEntityMap = siteRunnable.getPageEntityMap();
+        SiteEntity siteEntity = siteRunnable.getSiteEntity();
         if (!uniqUrl.contains(url)) {
             PageEntity pageEntity = new PageEntity();
             pageEntity.setSite(siteEntity);
-            pageEntity.setPath(url.replaceAll(domain, "/"));
+            pageEntity.setPath(url.replaceAll(siteRunnable.getDomain(), "/"));
             pageEntity.setCode(statusCode);
             pageEntity.setContent(document.outerHtml());
             pageEntityMap.put(url, pageEntity);
             uniqUrl.add(url);
         }
+        checkAndWrite(pageEntityMap, siteEntity);
+    }
+
+    private void checkAndWrite(@NotNull ConcurrentHashMap<String, PageEntity> pageEntityMap, SiteEntity siteEntity) {
         if (pageEntityMap.size() == 100) {
             log.info("total uniqUrl: " + uniqUrl.size() + " " + pageEntityMap.size());
             List<PageEntity> pageEntityList = new ArrayList<>(pageEntityMap.values().stream().toList());

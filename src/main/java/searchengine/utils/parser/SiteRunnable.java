@@ -32,12 +32,9 @@ public class SiteRunnable implements Runnable {
     private final LemmaRepositoryService lemmaRepositoryService;
     private final IndexRepositoryService indexRepositoryService;
     private ForkJoinPool forkJoinPool;
-    private SiteParser siteParser;
-
     private SiteParserBatch siteParserBatch;
     private final ConcurrentHashMap<String, PageEntity> pageEntityMap;
     private final Set<String> pageEntityAlreadyParsed;
-
     private final Site site;
     private final Set<String> uniqUrl;
     private Boolean parseActive = true;
@@ -58,7 +55,7 @@ public class SiteRunnable implements Runnable {
         siteRepositoryService.createSite(site, Status.INDEXING);
         long start = System.currentTimeMillis();
 //        siteParser = new SiteParser(Collections.singletonList(site.getUrl()), this);
-        siteParserBatch = new SiteParserBatch(Collections.singletonList(site.getUrl()), pageEntityMap, this);
+        siteParserBatch = new SiteParserBatch(Collections.singletonList(site.getUrl()), this);
         forkJoinPool = new ForkJoinPool();
         forkJoinPool.invoke(siteParserBatch);
         if (forkJoinPool.isQuiescent()) {

@@ -1,14 +1,18 @@
-package searchengine.services;
+package searchengine.services.searchService;
 
 import lombok.extern.log4j.Log4j2;
 import org.jetbrains.annotations.NotNull;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import searchengine.dto.index.Response;
 import searchengine.dto.search.LemmaEntityStats;
 import searchengine.dto.search.PageRank;
+import searchengine.dto.search.SearchItem;
 import searchengine.model.*;
+import searchengine.services.IndexRepositoryService;
+import searchengine.services.LemmaRepositoryService;
+import searchengine.services.PageRepositoryService;
+import searchengine.services.SiteRepositoryService;
 import searchengine.utils.ServiceStore;
 import searchengine.utils.lemma.LemmaFinder;
 
@@ -24,9 +28,10 @@ public class SearchServiceImpl implements SearchService {
     private final IndexRepositoryService indexRepositoryService;
     private final PageRepositoryService pageRepositoryService;
     private final SiteRepositoryService siteRepositoryService;
+    private String query;
 
-
-    public SearchServiceImpl(ServiceStore serviceStore) {
+    @Autowired
+    public SearchServiceImpl(@NotNull ServiceStore serviceStore) {
         this.indexRepositoryService = serviceStore.getIndexRepositoryService();
         this.pageRepositoryService = serviceStore.getPageRepositoryService();
         this.siteRepositoryService = serviceStore.getSiteRepositoryService();
@@ -35,15 +40,17 @@ public class SearchServiceImpl implements SearchService {
 
     @Override
     public Response getPages(String query, String site, Integer offset, Integer limit) {
+        setQuery(query);
         viewLogInfo(query, site, offset, limit);
         Map<String, Integer> queryWords = getLemmaFinder().collectLemmas(query);
         if (site.equals("all")) {
             List<SiteEntity> siteEntityList = siteRepositoryService.getSiteByStatus(Status.INDEXED);
-            Map<String, PageRank> pageRankMap = new HashMap<>();
+            List<SearchItem> searchItemList = new ArrayList<>();
             siteEntityList.forEach(siteEntity -> {
-                pageRankMap.putAll(getPageRank(queryWords.keySet(), siteEntity));
+                searchItemList.addAll(getPageRank(queryWords.keySet(), siteEntity));
+
             });
-            setRelevanceAndSort(pageRankMap);
+            setRelevanceAndSort(searchItemList);
         } else {
             SiteEntity siteEntity = siteRepositoryService.getSiteEntityByDomain(site.concat("/"));
             getPageRank(queryWords.keySet(), siteEntity);
@@ -52,24 +59,18 @@ public class SearchServiceImpl implements SearchService {
         return null;
     }
 
-    private @NotNull Map<String, PageRank> getPageRank(@NotNull Set<String> queryWords, SiteEntity siteEntity) {
+    private @NotNull List<SearchItem> getPageRank(@NotNull Set<String> queryWords, SiteEntity siteEntity) {
         Set<LemmaEntityStats> lemmaEntityStatsSet = new TreeSet<>(Comparator.comparing(LemmaEntityStats::getPercent));
         queryWords.forEach(query -> {
             long pageCountBySite = pageRepositoryService.getCountPageBySite(siteEntity);
             LemmaEntity lemmaEntity = lemmaRepositoryService.getLemmaEntity(query, siteEntity);
             if (lemmaEntity != null) {
                 float percent = ((float) lemmaEntity.getFrequency() / (float) pageCountBySite) * 100;
-                System.out.println("%%%%%%%%%%%%%%%%%%%%%%%%%%%");
-                System.out.println(lemmaEntity.getLemma() + " " + percent);
-                System.out.println("%%%%%%%%%%%%%%%%%%%%%%%%%%%");
                 if (percent < PERCENT_ACCEPT) {
                     lemmaEntityStatsSet.add(new LemmaEntityStats(lemmaEntity, percent));
                 }
             }
         });
-        System.out.println("+++++++++++++++++++++++++++");
-        lemmaEntityStatsSet.forEach(lemmaEntityStats -> System.out.println(lemmaEntityStats.getLemmaEntity().getLemma() + " " + lemmaEntityStats.getPercent()));
-        System.out.println("+++++++++++++++++++++++++++");
         List<PageEntity> pageEntityList = getListPageEntityByQuery(lemmaEntityStatsSet);
         return setPageRank(pageEntityList, lemmaEntityStatsSet);
 
@@ -100,45 +101,40 @@ public class SearchServiceImpl implements SearchService {
                 .toList();
     }
 
-    private @NotNull Map<String, PageRank> setPageRank(@NotNull List<PageEntity> pageEntityList, Set<LemmaEntityStats> lemmaEntityStatsSet) {
-        Map<String, PageRank> pageRankMap = new TreeMap<>();
+    private @NotNull List<SearchItem> setPageRank(@NotNull List<PageEntity> pageEntityList, Set<LemmaEntityStats> lemmaEntityStatsSet) {
+        SearchItemCreator searchItemCreator = new SearchItemCreator();
+        List<SearchItem> searchItemList = new ArrayList<>();
         pageEntityList.forEach(pageEntity -> {
-            PageRank pageRank = new PageRank();
+            SearchItem searchItem = new SearchItem();
+            SearchItem finalSearchItem = searchItem;
             lemmaEntityStatsSet.forEach(lemmaEntityStats -> {
                 float lemmaRank = indexRepositoryService.getIndexEntity(lemmaEntityStats.getLemmaEntity(), pageEntity).getLemmaRank();
-                pageRank.setDomain(pageEntity.getSite().getUrl());
-                pageRank.setSiteName(pageEntity.getSite().getName());
-                pageRank.setUri(pageEntity.getPath());
-                pageRank.setAbsRelevance(pageRank.getAbsRelevance() + lemmaRank);
+                finalSearchItem.setAbsoluteRelevance(finalSearchItem.getAbsoluteRelevance() + lemmaRank);
             });
-            pageRankMap.put(pageRank.getDomain().concat(pageRank.getUri().replaceFirst("/", "")), pageRank);
+            searchItem = searchItemCreator.createSearchItem(pageEntity, searchItem, getQuery());
+            searchItemList.add(searchItem);
         });
-        return pageRankMap;
+        return searchItemList;
     }
 
-    private void setRelevanceAndSort(@NotNull Map<String, PageRank> finalPageRankMap) {
-        List<PageRank> pageRankList = new ArrayList<>(finalPageRankMap.values());
-        PageRank maxAbsRelevance = Collections.max(pageRankList, Comparator.comparing(PageRank::getAbsRelevance));
-        List<PageRank> relevancePageRank = new ArrayList<>(pageRankList.stream()
+    private void setRelevanceAndSort(@NotNull List<SearchItem> searchItemList) {
+        SearchItem maxAbsRelevance = Collections.max(searchItemList, Comparator.comparing(SearchItem::getAbsoluteRelevance));
+        List<SearchItem> relevancePageRank = new ArrayList<>(searchItemList.stream()
                 .parallel()
                 .unordered()
-                .peek(pageRank -> pageRank.setRelevance(pageRank.getAbsRelevance() / maxAbsRelevance.getAbsRelevance()))
+                .peek(searchItem -> searchItem.setRelevance(searchItem.getAbsoluteRelevance() / maxAbsRelevance.getAbsoluteRelevance()))
                 .toList());
-        relevancePageRank.sort(Comparator.comparing(PageRank::getAbsRelevance).reversed());
+        relevancePageRank.sort(Comparator.comparing(SearchItem::getAbsoluteRelevance).reversed());
         System.out.println("after sorting");
         System.out.println("-------------");
-        relevancePageRank.forEach(pageRank -> System.out.println(pageRank.getUri() + " MaxRelevance: " + pageRank.getRelevance() + " absRelevance: " + pageRank.getAbsRelevance()));
+        relevancePageRank.forEach(searchItem -> System.out.println(searchItem.getUri() + "\n"
+                + "MaxRelevance: " + searchItem.getRelevance() + "\n"
+                + "absRelevance: " + searchItem.getAbsoluteRelevance() + "\n"
+                + searchItem.getTitle() + "\n"
+                + searchItem.getSnippet() + "\n"
+                + "-------------------------------------------"));
     }
 
-    private void setTitleAndSnippet(@NotNull PageEntity pageEntity, @NotNull PageRank pageRank, @NotNull Set<LemmaEntityStats> lemmaEntityStats) {
-        Map<String, String> partitionDocument = getLemmaFinder().partitionDocument(pageEntity.getContent());
-        Document document = Jsoup.parse(pageEntity.getContent());
-        pageRank.setTitle(document.getElementsByTag("title").text());
-        lemmaEntityStats.forEach(lemma -> {
-            String query = lemma.getLemmaEntity().getLemma();
-        });
-
-    }
 
     private void viewLogInfo(String query, String site, Integer offset, Integer limit) {
         log.info(query + " " + site + " " + offset + " " + limit);
@@ -147,6 +143,14 @@ public class SearchServiceImpl implements SearchService {
         queryWords.forEach(System.out::println);
         System.out.println("----------------------------");
 
+    }
+
+    private void setQuery(String query) {
+        this.query = query;
+    }
+
+    private @NotNull String getQuery() {
+        return this.query.replaceAll("[.,?!]", "").toLowerCase();
     }
 
     private LemmaFinder getLemmaFinder() {
