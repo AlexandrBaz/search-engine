@@ -9,7 +9,7 @@ import searchengine.dto.index.Response;
 import searchengine.dto.index.TrueResponse;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.services.IndexService;
-import searchengine.services.SearchService;
+import searchengine.services.searchService.SearchService;
 import searchengine.services.StatisticsService;
 
 

@@ -1,4 +1,4 @@
-package searchengine.services;
+package searchengine.services.searchService;
 
 import org.springframework.stereotype.Service;
 import searchengine.dto.index.Response;
