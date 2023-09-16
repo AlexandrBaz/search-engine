@@ -8,10 +8,7 @@ import searchengine.config.Site;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
 import searchengine.model.Status;
-import searchengine.services.IndexRepositoryService;
-import searchengine.services.LemmaRepositoryService;
-import searchengine.services.PageRepositoryService;
-import searchengine.services.SiteRepositoryService;
+import searchengine.services.*;
 import searchengine.utils.ServiceStore;
 import searchengine.utils.lemma.LemmaCollect;
 import searchengine.utils.lemma.LemmaRank;
@@ -31,6 +28,7 @@ public class SiteRunnable implements Runnable {
     private final PageRepositoryService pageRepositoryService;
     private final LemmaRepositoryService lemmaRepositoryService;
     private final IndexRepositoryService indexRepositoryService;
+    private final IndexServiceAsync indexServiceAsync;
     private ForkJoinPool forkJoinPool;
     private SiteParserBatch siteParserBatch;
     private final ConcurrentHashMap<String, PageEntity> pageEntityMap;
@@ -39,7 +37,7 @@ public class SiteRunnable implements Runnable {
     private final Set<String> uniqUrl;
     private Boolean parseActive = true;
 
-    public SiteRunnable(Site site, @NotNull ServiceStore serviceStore) {
+    public SiteRunnable(Site site, @NotNull ServiceStore serviceStore, IndexServiceAsync indexServiceAsync) {
         this.uniqUrl = new HashSet<>();
         this.pageEntityMap = new ConcurrentHashMap<>();
         this.pageEntityAlreadyParsed = new HashSet<>();
@@ -48,26 +46,27 @@ public class SiteRunnable implements Runnable {
         this.pageRepositoryService = serviceStore.getPageRepositoryService();
         this.lemmaRepositoryService = serviceStore.getLemmaRepositoryService();
         this.indexRepositoryService = serviceStore.getIndexRepositoryService();
+        this.indexServiceAsync = indexServiceAsync;
     }
 
     @Override
     public void run() {
-        siteRepositoryService.createSite(site, Status.INDEXING);
+//        siteRepositoryService.createSite(site, Status.INDEXING);
         long start = System.currentTimeMillis();
 //        siteParser = new SiteParser(Collections.singletonList(site.getUrl()), this);
-        siteParserBatch = new SiteParserBatch(Collections.singletonList(site.getUrl()), this);
-        forkJoinPool = new ForkJoinPool();
-        forkJoinPool.invoke(siteParserBatch);
-        if (forkJoinPool.isQuiescent()) {
-            pageRepositoryService.savePageEntityMap(pageEntityMap);
-            pageEntityMap.clear();
-            log.info("completed " + site.getUrl() + " Time Elapsed -> " + (start - System.currentTimeMillis()) + " ms");
-            log.info(uniqUrl.size() + " from SiteRunnable");
-        }
-        new LemmaCollect(this).collectMapsLemmas(getSiteEntity());
-        log.info("lemma finder completed for " + site.getUrl() + " Time Elapsed -> " + (start-System.currentTimeMillis()) + " ms");
+//        siteParserBatch = new SiteParserBatch(Collections.singletonList(site.getUrl()), this);
+//        forkJoinPool = new ForkJoinPool();
+//        forkJoinPool.invoke(siteParserBatch);
+//        if (forkJoinPool.isQuiescent()) {
+//            pageRepositoryService.savePageEntityMap(pageEntityMap);
+//            pageEntityMap.clear();
+//            log.info("completed " + site.getUrl() + " Time Elapsed -> " + (System.currentTimeMillis() - start) + " ms");
+//            log.info(uniqUrl.size() + " from SiteRunnable");
+//        }
+//        new LemmaCollect(this).collectMapsLemmas(getSiteEntity());
+//        log.info("lemma finder completed for " + site.getUrl() + " Time Elapsed -> " + (System.currentTimeMillis() - start) + " ms");
         new LemmaRank(this).lemmaRankBySite(site.getUrl());
-        log.info("rank completed for " + site.getUrl() + " Time Elapsed -> " + (start-System.currentTimeMillis()) + " ms");
+        log.info("rank completed for " + site.getUrl() + " Time Elapsed -> " + (System.currentTimeMillis() - start) + " ms");
         siteRepositoryService.siteIndexComplete(site.getUrl());
     }
 

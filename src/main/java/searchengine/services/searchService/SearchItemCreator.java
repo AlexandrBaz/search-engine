@@ -16,7 +16,7 @@ public class SearchItemCreator {
     public SearchItem createSearchItem(@NotNull PageEntity pageEntity, @NotNull SearchItem searchItem, String query) {
         List<String> listWordsOfQuery = getListWordsOfQuery(query);
         searchItem.setSiteName(pageEntity.getSite().getName());
-        searchItem.setDomain(pageEntity.getSite().getUrl());
+        searchItem.setSite(pageEntity.getSite().getUrl().substring(0, pageEntity.getSite().getUrl().length()-2));
         searchItem.setUri(pageEntity.getPath());
         searchItem.setTitle(getPageTitle(pageEntity.getContent()));
         searchItem.setSnippet(getSnippet(pageEntity.getContent(), listWordsOfQuery));

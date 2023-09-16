@@ -4,10 +4,9 @@ import lombok.extern.log4j.Log4j2;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import searchengine.dto.index.Response;
 import searchengine.dto.search.LemmaEntityStats;
-import searchengine.dto.search.PageRank;
 import searchengine.dto.search.SearchItem;
+import searchengine.dto.search.SearchResponse;
 import searchengine.model.*;
 import searchengine.services.IndexRepositoryService;
 import searchengine.services.LemmaRepositoryService;
@@ -39,24 +38,27 @@ public class SearchServiceImpl implements SearchService {
     }
 
     @Override
-    public Response getPages(String query, String site, Integer offset, Integer limit) {
+    public SearchResponse getPages(String query, String site, Integer offset, Integer limit) {
+        long start = System.currentTimeMillis();
         setQuery(query);
+        SearchResponse searchResponse = new SearchResponse();
         viewLogInfo(query, site, offset, limit);
         Map<String, Integer> queryWords = getLemmaFinder().collectLemmas(query);
         if (site.equals("all")) {
             List<SiteEntity> siteEntityList = siteRepositoryService.getSiteByStatus(Status.INDEXED);
             List<SearchItem> searchItemList = new ArrayList<>();
-            siteEntityList.forEach(siteEntity -> {
-                searchItemList.addAll(getPageRank(queryWords.keySet(), siteEntity));
-
-            });
-            setRelevanceAndSort(searchItemList);
+            siteEntityList.forEach(siteEntity -> searchItemList.addAll(getPageRank(queryWords.keySet(), siteEntity)));
+            List<SearchItem> searchItemSortedList = getRelevanceAndSort(searchItemList);
+            searchResponse.setResult(true);
+            searchResponse.setCount(searchItemSortedList.size());
+            searchResponse.setData(searchItemSortedList);
         } else {
             SiteEntity siteEntity = siteRepositoryService.getSiteEntityByDomain(site.concat("/"));
             getPageRank(queryWords.keySet(), siteEntity);
 //            getListByQueryBySite(queryWords, site);
         }
-        return null;
+        log.info("Search completed for " + (System.currentTimeMillis() - start) + " ms");
+        return searchResponse;
     }
 
     private @NotNull List<SearchItem> getPageRank(@NotNull Set<String> queryWords, SiteEntity siteEntity) {
@@ -73,7 +75,6 @@ public class SearchServiceImpl implements SearchService {
         });
         List<PageEntity> pageEntityList = getListPageEntityByQuery(lemmaEntityStatsSet);
         return setPageRank(pageEntityList, lemmaEntityStatsSet);
-
     }
 
     private @NotNull List<PageEntity> getListPageEntityByQuery(@NotNull Set<LemmaEntityStats> lemmaEntityStatsSet) {
@@ -117,22 +118,23 @@ public class SearchServiceImpl implements SearchService {
         return searchItemList;
     }
 
-    private void setRelevanceAndSort(@NotNull List<SearchItem> searchItemList) {
+    private @NotNull List<SearchItem> getRelevanceAndSort(@NotNull List<SearchItem> searchItemList) {
         SearchItem maxAbsRelevance = Collections.max(searchItemList, Comparator.comparing(SearchItem::getAbsoluteRelevance));
-        List<SearchItem> relevancePageRank = new ArrayList<>(searchItemList.stream()
+        List<SearchItem> searchItemSortedList = new ArrayList<>(searchItemList.stream()
                 .parallel()
                 .unordered()
                 .peek(searchItem -> searchItem.setRelevance(searchItem.getAbsoluteRelevance() / maxAbsRelevance.getAbsoluteRelevance()))
                 .toList());
-        relevancePageRank.sort(Comparator.comparing(SearchItem::getAbsoluteRelevance).reversed());
+        searchItemSortedList.sort(Comparator.comparing(SearchItem::getAbsoluteRelevance).reversed());
         System.out.println("after sorting");
         System.out.println("-------------");
-        relevancePageRank.forEach(searchItem -> System.out.println(searchItem.getUri() + "\n"
+        searchItemSortedList.forEach(searchItem -> System.out.println(searchItem.getUri() + "\n"
                 + "MaxRelevance: " + searchItem.getRelevance() + "\n"
                 + "absRelevance: " + searchItem.getAbsoluteRelevance() + "\n"
                 + searchItem.getTitle() + "\n"
                 + searchItem.getSnippet() + "\n"
                 + "-------------------------------------------"));
+        return searchItemList;
     }
 
 

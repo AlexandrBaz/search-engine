@@ -36,14 +36,23 @@ indexing-settings:
       name: https://dombulgakova.ru/
 #    - url: https://playback.ru/
 #      name: https://playback.ru/
-#    - url: https://skillbox.ru/
-#      name: https://skillbox.ru/
+    - url: https://skillbox.ru/
+      name: https://skillbox.ru/
 
 
 jsoup-setting:
-  Jsoup:
-    userAgent: Mozilla/5.0 (Windows; U; Windows NT 6.1; ru-RU) AppleWebKit/534.16 (KHTML, like Gecko) Chrome/10.0.648.11 Safari/534.16
+  jsoup:
+    useragent: Mozilla/5.0 (Windows; U; Windows NT 6.1; ru-RU) AppleWebKit/534.16 (KHTML, like Gecko) Chrome/10.0.648.11 Safari/534.16
     referrer: https://www:google.com
-    timeout: 10000
+    timeout: 20000
     ignoreHttpErrors: true
     followRedirects: false
+    sleep: 500
+
+media:
+  regex: (.*/)*.+\\.(png|jpg|gif|bmp|jpeg|PNG|JPG|GIF|BMP|pdf|php|zip)$|[?|#]
+
+batch:
+  parse: 100
+  lemma: 100
+  index: 20

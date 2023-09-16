@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import searchengine.dto.index.FalseResponse;
 import searchengine.dto.index.Response;
 import searchengine.dto.index.TrueResponse;
+import searchengine.dto.search.SearchResponse;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.services.IndexService;
 import searchengine.services.searchService.SearchService;
@@ -63,17 +64,19 @@ public class ApiController {
     }
 
     @GetMapping("/search")
-    public Response searchQuery(@RequestParam (name = "query") @NotNull String query,
-                                @RequestParam (name = "site", defaultValue = "all") String site,
-                                @RequestParam (name = "offset", defaultValue = "0") Integer offset,
-                                @RequestParam (name = "limit", defaultValue = "10") Integer limit) {
+    public ResponseEntity<?> searchQuery(@RequestParam (name = "query") @NotNull String query,
+                                                      @RequestParam (name = "site", defaultValue = "all") String site,
+                                                      @RequestParam (name = "offset", defaultValue = "0") Integer offset,
+                                                      @RequestParam (name = "limit", defaultValue = "10") Integer limit) {
+
+        SearchResponse searchResponse;
         if (!query.isBlank()){
-            response = searchService.getPages(query, site, offset, limit);
+            searchResponse = searchService.getPages(query, site, offset, limit);
 
         } else {
-            response = new FalseResponse(false, "Задан пустой поисковый запрос");
+            return ResponseEntity.ok(new FalseResponse(false, "Задан пустой поисковый запрос"));
         }
-        return response;
+        return ResponseEntity.ok(searchResponse);
 
     }
 }

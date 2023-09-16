@@ -19,6 +19,8 @@ public class LemmaFinder {
     private static final String[] particlesNames = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ", "ЧАСТ", "МС", "МС-П", "ВВОДН"};
     private static final String trashHtmlTags = "(&lt;)(.*?)(&gt; {3})";
 
+    private final static String code4xx5xx = "[45]\\d{2}";
+
     public static LemmaFinder getInstance() throws IOException {
         LuceneMorphology morphology = new RussianLuceneMorphology();
         return new LemmaFinder(morphology);
@@ -145,23 +147,25 @@ public class LemmaFinder {
 
     public @NotNull ConcurrentHashMap<String, Float> getAllIndexRankOfPage(@NotNull PageEntity pageEntity) {
         ConcurrentHashMap<String, Float> pageIndexMap = new ConcurrentHashMap<>();
-        partitionDocument(pageEntity.getContent()).forEach((partName, text) -> {
-            ConcurrentHashMap<String, Float> lemmaFromPagePart = switch (partName) {
-                case ("title") -> getLemmaFromPagePart(text, IndexLemmaRank.TITLE.getMultiplier());
-                case ("description") -> getLemmaFromPagePart(text, IndexLemmaRank.DESCRIPTION.getMultiplier());
-                case ("h1Elements") -> getLemmaFromPagePart(text, IndexLemmaRank.H1ELEMENTS.getMultiplier());
-                case ("h2Elements") -> getLemmaFromPagePart(text, IndexLemmaRank.H2ELEMENTS.getMultiplier());
-                case ("footer") -> getLemmaFromPagePart(text, IndexLemmaRank.FOOTER.getMultiplier());
-                default -> getLemmaFromPagePart(text, IndexLemmaRank.BODY.getMultiplier());
-            };
-            lemmaFromPagePart.forEach((lemma, rank) -> {
-                if (pageIndexMap.containsKey(lemma)) {
-                    pageIndexMap.computeIfPresent(lemma, (key, value) -> value + rank);
-                } else {
-                    pageIndexMap.put(lemma, rank);
-                }
+        if (!pageEntity.getCode().toString().equals(code4xx5xx)) {
+            partitionDocument(pageEntity.getContent()).forEach((partName, text) -> {
+                ConcurrentHashMap<String, Float> lemmaFromPagePart = switch (partName) {
+                    case ("title") -> getLemmaFromPagePart(text, IndexLemmaRank.TITLE.getMultiplier());
+                    case ("description") -> getLemmaFromPagePart(text, IndexLemmaRank.DESCRIPTION.getMultiplier());
+                    case ("h1Elements") -> getLemmaFromPagePart(text, IndexLemmaRank.H1ELEMENTS.getMultiplier());
+                    case ("h2Elements") -> getLemmaFromPagePart(text, IndexLemmaRank.H2ELEMENTS.getMultiplier());
+                    case ("footer") -> getLemmaFromPagePart(text, IndexLemmaRank.FOOTER.getMultiplier());
+                    default -> getLemmaFromPagePart(text, IndexLemmaRank.BODY.getMultiplier());
+                };
+                lemmaFromPagePart.forEach((lemma, rank) -> {
+                    if (pageIndexMap.containsKey(lemma)) {
+                        pageIndexMap.computeIfPresent(lemma, (key, value) -> value + rank);
+                    } else {
+                        pageIndexMap.put(lemma, rank);
+                    }
+                });
             });
-        });
+        }
         return pageIndexMap;
     }
 

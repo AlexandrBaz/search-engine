@@ -5,10 +5,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import searchengine.config.Site;
+import searchengine.model.IndexEntity;
 import searchengine.model.SiteEntity;
 import searchengine.model.Status;
 import searchengine.utils.ServiceStore;
 import searchengine.utils.parser.PageParser;
+
+import java.util.List;
 
 @Service
 public class IndexServiceAsyncImpl implements IndexServiceAsync{
@@ -24,6 +27,12 @@ public class IndexServiceAsyncImpl implements IndexServiceAsync{
         }
         PageParser pageParser = new PageParser(url, site.getUrl(), serviceStore);
         pageParser.addOrUpdatePage();
+    }
+
+    @Override
+    @Async
+    public void writeIndexRank(List<IndexEntity> indexEntityList) {
+        serviceStore.getIndexRepositoryService().addIndexEntityList(indexEntityList);
     }
 
     @Autowired
