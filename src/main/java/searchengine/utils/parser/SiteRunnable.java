@@ -51,21 +51,21 @@ public class SiteRunnable implements Runnable {
 
     @Override
     public void run() {
-//        siteRepositoryService.createSite(site, Status.INDEXING);
+        siteRepositoryService.createSite(site, Status.INDEXING);
         long start = System.currentTimeMillis();
 //        siteParser = new SiteParser(Collections.singletonList(site.getUrl()), this);
-//        siteParserBatch = new SiteParserBatch(Collections.singletonList(site.getUrl()), this);
-//        forkJoinPool = new ForkJoinPool();
-//        forkJoinPool.invoke(siteParserBatch);
-//        if (forkJoinPool.isQuiescent()) {
-//            pageRepositoryService.savePageEntityMap(pageEntityMap);
-//            pageEntityMap.clear();
-//            log.info("completed " + site.getUrl() + " Time Elapsed -> " + (System.currentTimeMillis() - start) + " ms");
-//            log.info(uniqUrl.size() + " from SiteRunnable");
-//        }
-//        new LemmaCollect(this).collectMapsLemmas(getSiteEntity());
-//        log.info("lemma finder completed for " + site.getUrl() + " Time Elapsed -> " + (System.currentTimeMillis() - start) + " ms");
-        new LemmaRank(this).lemmaRankBySite(site.getUrl());
+        siteParserBatch = new SiteParserBatch(Collections.singletonList(site.getUrl()), this);
+        forkJoinPool = new ForkJoinPool();
+        forkJoinPool.invoke(siteParserBatch);
+        if (forkJoinPool.isQuiescent()) {
+            pageRepositoryService.savePageEntityMap(pageEntityMap);
+            pageEntityMap.clear();
+            log.info("completed " + site.getUrl() + " Time Elapsed -> " + (System.currentTimeMillis() - start) + " ms");
+            log.info(uniqUrl.size() + " from SiteRunnable");
+        }
+        new LemmaCollect(this).collectMapsLemmas(getSiteEntity());
+        log.info("lemma finder completed for " + site.getUrl() + " Time Elapsed -> " + (System.currentTimeMillis() - start) + " ms");
+        new LemmaRank(this).lemmaRankBySite();
         log.info("rank completed for " + site.getUrl() + " Time Elapsed -> " + (System.currentTimeMillis() - start) + " ms");
         siteRepositoryService.siteIndexComplete(site.getUrl());
     }

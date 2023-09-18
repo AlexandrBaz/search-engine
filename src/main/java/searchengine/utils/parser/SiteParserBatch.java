@@ -28,17 +28,17 @@ public class SiteParserBatch extends RecursiveAction {
     private final SiteRunnable siteRunnable;
     private final ReentrantLock lock = new ReentrantLock();
     @Value("${batch.parse}")
-    private static int BATCH_PARSE;
+    private static int BATCH_PARSE = 100;
     @Value("${jsoup-setting.jsoup.useragent}")
-    private static String USER_AGENT;
+    private static String USER_AGENT = "Mozilla/5.0 (Windows; U; Windows NT 6.1; ru-RU) AppleWebKit/534.16 (KHTML, like Gecko) Chrome/10.0.648.11 Safari/534.16";
     @Value("${jsoup-setting.jsoup.timeout}")
-    private static int TIME_OUT;
-    @Value("${jsoup-setting.jsoup.follow.redirects}")
-    private static boolean FOLLOW_REDIRECTS;
+    private static int TIME_OUT = 20000;
+    @Value("${jsoup-setting.jsoup.followRedirects}")
+    private static boolean FOLLOW_REDIRECTS = false;
     @Value("${jsoup-setting.jsoup.sleep}")
-    private static int THREAD_SLEEP;
+    private static int THREAD_SLEEP = 500;
     @Value("${media.regex}")
-    private static String MEDIA_REGEX;
+    private static String MEDIA_REGEX = "(.*/)*.+\\\\.(png|jpg|gif|bmp|jpeg|PNG|JPG|GIF|BMP|pdf|php|zip)$|[?|#]";
 
 
     public SiteParserBatch(List<String> listUrlsToParse, @NotNull SiteRunnable siteRunnable) {
@@ -110,9 +110,9 @@ public class SiteParserBatch extends RecursiveAction {
             threadSleep();
             try {
                 Connection.Response response = Jsoup.connect(url)
-                        .userAgent(USER_AGENT)
-                        .timeout(TIME_OUT)
-                        .ignoreHttpErrors(FOLLOW_REDIRECTS)
+                        .userAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.21 (KHTML, like Gecko) Chrome/19.0.1042.0 Safari/535.21")
+                        .timeout(100000)
+                        .ignoreHttpErrors(true)
                         .execute();
                 Document document = response.parse();
                 createPage(document, url, response.statusCode());

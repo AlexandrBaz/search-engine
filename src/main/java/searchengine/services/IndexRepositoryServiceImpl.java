@@ -44,7 +44,6 @@ public class IndexRepositoryServiceImpl implements IndexRepositoryService{
     @Transactional
     public synchronized void addIndexEntityList(List<IndexEntity> allRank) {
         indexRepository.saveAllAndFlush(allRank);
-        allRank.clear();
     }
 
     @Override
