@@ -1,12 +1,10 @@
 package searchengine.services.searchService;
 
 import org.springframework.stereotype.Service;
-import searchengine.dto.index.Response;
-
-import java.util.Optional;
+import searchengine.dto.search.SearchResponse;
 
 @Service
 public interface SearchService {
 
-    Response getPages(String query, String site, Integer offset, Integer limit);
+    SearchResponse getPages(String query, String site, Integer offset, Integer limit);
 }

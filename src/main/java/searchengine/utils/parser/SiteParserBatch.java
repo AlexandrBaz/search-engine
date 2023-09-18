@@ -6,6 +6,7 @@ import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
+import org.springframework.beans.factory.annotation.Value;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
 
@@ -25,7 +26,19 @@ public class SiteParserBatch extends RecursiveAction {
     private final Set<String> uniqUrl;
     private final Set<String> pageEntityAlreadyParsed;
     private final SiteRunnable siteRunnable;
-    ReentrantLock lock = new ReentrantLock();
+    private final ReentrantLock lock = new ReentrantLock();
+    @Value("${batch.parse}")
+    private static int BATCH_PARSE = 100;
+    @Value("${jsoup-setting.jsoup.useragent}")
+    private static String USER_AGENT = "Mozilla/5.0 (Windows; U; Windows NT 6.1; ru-RU) AppleWebKit/534.16 (KHTML, like Gecko) Chrome/10.0.648.11 Safari/534.16";
+    @Value("${jsoup-setting.jsoup.timeout}")
+    private static int TIME_OUT = 20000;
+    @Value("${jsoup-setting.jsoup.followRedirects}")
+    private static boolean FOLLOW_REDIRECTS = false;
+    @Value("${jsoup-setting.jsoup.sleep}")
+    private static int THREAD_SLEEP = 500;
+    @Value("${media.regex}")
+    private static String MEDIA_REGEX = "(.*/)*.+\\\\.(png|jpg|gif|bmp|jpeg|PNG|JPG|GIF|BMP|pdf|php|zip)$|[?|#]";
 
 
     public SiteParserBatch(List<String> listUrlsToParse, @NotNull SiteRunnable siteRunnable) {
@@ -72,8 +85,7 @@ public class SiteParserBatch extends RecursiveAction {
     }
 
     private boolean urlIsValid(@NotNull String url) {
-        String mediaRegex = "(.*/)*.+\\.(png|jpg|gif|bmp|jpeg|PNG|JPG|GIF|BMP|pdf|php|zip)$|[?|#]";
-        return !url.matches(mediaRegex)
+        return !url.matches(MEDIA_REGEX)
                 && url.startsWith(siteRunnable.getDomain())
                 && (url.endsWith("/")
                 || url.endsWith("html"));
@@ -107,6 +119,7 @@ public class SiteParserBatch extends RecursiveAction {
                 Elements elements = document.select("a[href]");
                 urlList = elements.stream().map(absUrl -> absUrl.attr("abs:href")).toList();
             } catch (IOException e) {
+                siteRunnable.getSiteRepositoryService().setParseError(siteRunnable.getSiteEntity(), e.getMessage());
                 throw new RuntimeException(e);
             }
         }
@@ -115,7 +128,7 @@ public class SiteParserBatch extends RecursiveAction {
 
     private void threadSleep() {
         try {
-            Thread.sleep(500);
+            Thread.sleep(THREAD_SLEEP);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
@@ -138,7 +151,7 @@ public class SiteParserBatch extends RecursiveAction {
     }
 
     private void checkAndWrite(@NotNull ConcurrentHashMap<String, PageEntity> pageEntityMap, SiteEntity siteEntity) {
-        if (pageEntityMap.size() == 100) {
+        if (pageEntityMap.size() == BATCH_PARSE) {
             log.info("total uniqUrl: " + uniqUrl.size() + " " + pageEntityMap.size());
             List<PageEntity> pageEntityList = new ArrayList<>(pageEntityMap.values().stream().toList());
             pageEntityMap.clear();

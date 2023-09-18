@@ -19,11 +19,11 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 @Log4j2
 public class LemmaCollect {
-    private final static Integer BATCH_SIZE = 50;
+    private final static Integer BATCH_SIZE = 100;
     private final PageRepositoryService pageRepositoryService;
     private final LemmaRepositoryService lemmaRepositoryService;
-    ConcurrentHashMap<String, LemmaEntity> mapLemmaEntity = new ConcurrentHashMap<>();
 
+    ConcurrentHashMap<String, LemmaEntity> mapLemmaEntity = new ConcurrentHashMap<>();
     public LemmaCollect(@NotNull SiteRunnable siteRunnable) {
         this.lemmaRepositoryService = siteRunnable.getLemmaRepositoryService();
         this.pageRepositoryService = siteRunnable.getPageRepositoryService();
@@ -34,18 +34,27 @@ public class LemmaCollect {
         Slice<PageEntity> slice = pageRepositoryService.getSliceOfPages(siteEntity, PageRequest.of(0, BATCH_SIZE));
         List<PageEntity> pageEntityList = slice.getContent();
         pageEntityList.stream().parallel().forEach(this::setLemma);
+        int count = 1;
         while (slice.hasNext()) {
+            count++;
+            log.info("getting lemma for slice : " + count + " " + siteEntity.getName());
             slice = pageRepositoryService.getSliceOfPages(siteEntity, slice.nextPageable());
             slice.getContent().stream().parallel().forEach(this::setLemma);
+
         }
+        writeToDB(mapLemmaEntity);
         long end = System.currentTimeMillis();
-        List<LemmaEntity> lemmaEntities = mapLemmaEntity.values().stream().toList();
-        lemmaRepositoryService.addLemmaEntityList(lemmaEntities);
         log.info("Time elapsed " + (end - start) + " ms. Collect lemma");
 
     }
 
-    public void setLemma(@NotNull PageEntity pageEntity) {
+    private synchronized void writeToDB(@NotNull ConcurrentHashMap<String, LemmaEntity> mapLemmaEntity){
+        List<LemmaEntity> lemmaEntities = mapLemmaEntity.values().stream().toList();
+        mapLemmaEntity.clear();
+        lemmaRepositoryService.addLemmaEntityList(lemmaEntities);
+    }
+
+    private void setLemma(@NotNull PageEntity pageEntity) {
         ConcurrentHashMap<String, Integer> lemmaOnPage = getLemmaOnPage(pageEntity.getContent());
         lemmaOnPage.forEach((lemma, frequency) -> {
             LemmaEntity lemmaEntity = new LemmaEntity();

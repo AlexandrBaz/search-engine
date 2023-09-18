@@ -16,7 +16,7 @@ public class SearchItemCreator {
     public SearchItem createSearchItem(@NotNull PageEntity pageEntity, @NotNull SearchItem searchItem, String query) {
         List<String> listWordsOfQuery = getListWordsOfQuery(query);
         searchItem.setSiteName(pageEntity.getSite().getName());
-        searchItem.setDomain(pageEntity.getSite().getUrl());
+        searchItem.setSite(pageEntity.getSite().getUrl().substring(0, pageEntity.getSite().getUrl().length()-2));
         searchItem.setUri(pageEntity.getPath());
         searchItem.setTitle(getPageTitle(pageEntity.getContent()));
         searchItem.setSnippet(getSnippet(pageEntity.getContent(), listWordsOfQuery));
@@ -65,15 +65,20 @@ public class SearchItemCreator {
         StringTokenizer st = new StringTokenizer(sentence, " \t\n\r,.?!\"«»", true);
         while (st.hasMoreTokens()) {
             String tokenWord = st.nextToken();
-            if (tokenWord.equals(searchWord)) {
+            String tokenWordToLowercase = tokenWord.toLowerCase();
+            if(tokenWordToLowercase.equals(searchWord)){
                 count = tokenWord.length()>2 ? count+1 : count;
-                stringBuilder.append("<b>").append(searchWord).append("</b>");
-            } else if (tokenWord.equals(searchFirstUpper)) {
-                count = tokenWord.length()>2 ? count+1 : count;
-                stringBuilder.append("<b>").append(searchFirstUpper).append("</b>");
-            } else if (tokenWord.equals(searchUppercase)) {
-                count = tokenWord.length()>2 ? count+1 : count;
-                stringBuilder.append("<b>").append(searchUppercase).append("</b>");
+                stringBuilder.append("<b>").append(tokenWord).append("</b>");
+//            }
+//            if (tokenWord.equals(searchWord)) {
+//                count = tokenWord.length()>2 ? count+1 : count;
+//                stringBuilder.append("<b>").append(searchWord).append("</b>");
+//            } else if (tokenWord.equals(searchFirstUpper)) {
+//                count = tokenWord.length()>2 ? count+1 : count;
+//                stringBuilder.append("<b>").append(searchFirstUpper).append("</b>");
+//            } else if (tokenWord.equals(searchUppercase)) {
+//                count = tokenWord.length()>2 ? count+1 : count;
+//                stringBuilder.append("<b>").append(searchUppercase).append("</b>");
             } else {
                 stringBuilder.append(tokenWord);
             }

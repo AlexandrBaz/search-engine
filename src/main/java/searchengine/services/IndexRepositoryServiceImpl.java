@@ -42,7 +42,7 @@ public class IndexRepositoryServiceImpl implements IndexRepositoryService{
 
     @Override
     @Transactional
-    public synchronized void addIndexEntityList(CopyOnWriteArrayList<IndexEntity> allRank) {
+    public synchronized void addIndexEntityList(List<IndexEntity> allRank) {
         indexRepository.saveAllAndFlush(allRank);
     }
 

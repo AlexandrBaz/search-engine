@@ -20,7 +20,7 @@ public interface IndexRepositoryService {
 
     void addToIndexEntity(LemmaEntity lemmaEntity, Integer rank, PageEntity pageEntity);
 
-    void addIndexEntityList(CopyOnWriteArrayList<IndexEntity> allRank);
+    void addIndexEntityList(List<IndexEntity> allRank);
 
     long getCountIndexByLemmaAndSite(LemmaEntity lemmaEntity, SiteEntity siteEntity);
 

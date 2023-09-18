@@ -30,12 +30,12 @@ public class IndexServiceImpl implements IndexService {
 
     @Override
     public Boolean startIndexing() {
-        if (!isStarted()) {
-            checkAndDeleteSiteIfPresent(sitesList);
+//        if (!isStarted()) {
+//            checkAndDeleteSiteIfPresent(sitesList);
             executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
             parserList = new ArrayList<>();
             sitesList.getSites().forEach(site -> {
-                SiteRunnable worker = new SiteRunnable(site, serviceStore);
+                SiteRunnable worker = new SiteRunnable(site, serviceStore, indexServiceAsync);
                 Future<?> future = executor.submit(worker);
                 Parser parser = new Parser();
                 parser.setDomain(site.getUrl());
@@ -45,9 +45,9 @@ public class IndexServiceImpl implements IndexService {
             });
             executor.shutdown();
             return true;
-        } else {
-            return false;
-        }
+//        } else {
+//            return false;
+//        }
     }
 
     private void checkAndDeleteSiteIfPresent(@NotNull SitesList sitesList) {

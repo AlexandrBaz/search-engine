@@ -4,8 +4,8 @@ import lombok.Data;
 
 @Data
 public class SearchItem {
+    private String site;
     private String siteName;
-    private String domain;
     private String uri;
     private String title;
     private String snippet;
