@@ -4,23 +4,42 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.springframework.data.domain.Page;
+import org.springframework.stereotype.Component;
 import searchengine.dto.search.SearchItem;
+import searchengine.dto.search.SearchItemCached;
 import searchengine.dto.search.SnippetRank;
 import searchengine.model.PageEntity;
+import searchengine.services.PageRepositoryService;
 
 import java.text.BreakIterator;
 import java.util.*;
 
+@Component
 public class SearchItemCreator {
 
-    public SearchItem createSearchItem(@NotNull PageEntity pageEntity, @NotNull SearchItem searchItem, String query) {
-        List<String> listWordsOfQuery = getListWordsOfQuery(query);
-        searchItem.setSiteName(pageEntity.getSite().getName());
-        searchItem.setSite(pageEntity.getSite().getUrl().substring(0, pageEntity.getSite().getUrl().length()-2));
-        searchItem.setUri(pageEntity.getPath());
-        searchItem.setTitle(getPageTitle(pageEntity.getContent()));
-        searchItem.setSnippet(getSnippet(pageEntity.getContent(), listWordsOfQuery));
-        return searchItem;
+    private final PageRepositoryService pageRepositoryService;
+
+    public SearchItemCreator(PageRepositoryService pageRepositoryService) {
+        this.pageRepositoryService = pageRepositoryService;
+    }
+
+    public List<SearchItem> createSearchItem(@NotNull Page<SearchItemCached> searchItemCachedPage, String query) {
+        List<SearchItem> searchItemList  = new ArrayList<>();
+        searchItemCachedPage.forEach(searchItemCached -> {
+                    PageEntity pageEntity = pageRepositoryService.getPageEntityByID(searchItemCached.getPageId());
+                    SearchItem searchItem = new SearchItem();
+                    List<String> listWordsOfQuery = getListWordsOfQuery(query); //????
+
+                    searchItem.setSite(pageEntity.getSite().getUrl().substring(0, pageEntity.getSite().getUrl().length() - 2));
+                    searchItem.setSiteName(pageEntity.getSite().getName());
+                    searchItem.setUri(pageEntity.getPath());
+                    searchItem.setTitle(getPageTitle(pageEntity.getContent()));
+                    searchItem.setSnippet(getSnippet(pageEntity.getContent(), listWordsOfQuery));
+                    searchItem.setRelevance(searchItemCached.getRelevance());
+                    searchItemList.add(searchItem);
+                });
+        return searchItemList;
     }
 
     private @NotNull String getPageTitle(String text) {
@@ -65,20 +84,20 @@ public class SearchItemCreator {
         StringTokenizer st = new StringTokenizer(sentence, " \t\n\r,.?!\"«»", true);
         while (st.hasMoreTokens()) {
             String tokenWord = st.nextToken();
-            String tokenWordToLowercase = tokenWord.toLowerCase();
-            if(tokenWordToLowercase.equals(searchWord)){
-                count = tokenWord.length()>2 ? count+1 : count;
-                stringBuilder.append("<b>").append(tokenWord).append("</b>");
+//            String tokenWordToLowercase = tokenWord.toLowerCase();
+//            if (tokenWordToLowercase.equals(searchWord)) {
+//                count = tokenWord.length() > 2 ? count + 1 : count;
+//                stringBuilder.append("<b>").append(tokenWord).append("</b>");
 //            }
-//            if (tokenWord.equals(searchWord)) {
-//                count = tokenWord.length()>2 ? count+1 : count;
-//                stringBuilder.append("<b>").append(searchWord).append("</b>");
-//            } else if (tokenWord.equals(searchFirstUpper)) {
-//                count = tokenWord.length()>2 ? count+1 : count;
-//                stringBuilder.append("<b>").append(searchFirstUpper).append("</b>");
-//            } else if (tokenWord.equals(searchUppercase)) {
-//                count = tokenWord.length()>2 ? count+1 : count;
-//                stringBuilder.append("<b>").append(searchUppercase).append("</b>");
+            if (tokenWord.equals(searchWord)) {
+                count = tokenWord.length()>2 ? count+1 : count;
+                stringBuilder.append("<b>").append(searchWord).append("</b>");
+            } else if (tokenWord.equals(searchFirstUpper)) {
+                count = tokenWord.length()>2 ? count+1 : count;
+                stringBuilder.append("<b>").append(searchFirstUpper).append("</b>");
+            } else if (tokenWord.equals(searchUppercase)) {
+                count = tokenWord.length()>2 ? count+1 : count;
+                stringBuilder.append("<b>").append(searchUppercase).append("</b>");
             } else {
                 stringBuilder.append(tokenWord);
             }

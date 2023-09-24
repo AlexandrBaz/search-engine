@@ -24,7 +24,6 @@ public class IndexServiceImpl implements IndexService {
     private SitesList sitesList;
     private ExecutorService executor;
     private ServiceStore serviceStore;
-
     private IndexServiceAsync indexServiceAsync;
     List<Parser> parserList;
 

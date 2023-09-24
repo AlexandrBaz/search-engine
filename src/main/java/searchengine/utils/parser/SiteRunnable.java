@@ -60,6 +60,7 @@ public class SiteRunnable implements Runnable {
         if (forkJoinPool.isQuiescent()) {
             pageRepositoryService.savePageEntityMap(pageEntityMap);
             pageEntityMap.clear();
+            forkJoinPool.shutdown();
             log.info("completed " + site.getUrl() + " Time Elapsed -> " + (System.currentTimeMillis() - start) + " ms");
             log.info(uniqUrl.size() + " from SiteRunnable");
         }

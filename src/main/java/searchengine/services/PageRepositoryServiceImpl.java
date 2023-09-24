@@ -91,6 +91,11 @@ public class PageRepositoryServiceImpl implements PageRepositoryService {
         pageRepository.saveAllAndFlush(pageEntityList);
     }
 
+    @Override
+    public PageEntity getPageEntityByID(long pageId) {
+        return pageRepository.findById(pageId).orElse(null);
+    }
+
     @Autowired
     public void setPageRepository(PageRepository pageRepository) {
         this.pageRepository = pageRepository;

@@ -9,6 +9,5 @@ public class SearchItem {
     private String uri;
     private String title;
     private String snippet;
-    private float absoluteRelevance;
     private float relevance;
 }

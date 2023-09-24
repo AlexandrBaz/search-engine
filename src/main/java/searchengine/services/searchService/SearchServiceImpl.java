@@ -1,12 +1,15 @@
 package searchengine.services.searchService;
 
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import searchengine.dto.search.LemmaEntityStats;
-import searchengine.dto.search.SearchItem;
-import searchengine.dto.search.SearchResponse;
+import searchengine.dto.search.*;
 import searchengine.model.*;
 import searchengine.services.IndexRepositoryService;
 import searchengine.services.LemmaRepositoryService;
@@ -17,17 +20,23 @@ import searchengine.utils.lemma.LemmaFinder;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.*;
 
 @Service
+@Setter
+@Getter
 @Log4j2
 public class SearchServiceImpl implements SearchService {
 
-    private final static int PERCENT_ACCEPT = 80;
+    private final int PERCENT_ACCEPT = 80;
     private final LemmaRepositoryService lemmaRepositoryService;
     private final IndexRepositoryService indexRepositoryService;
     private final PageRepositoryService pageRepositoryService;
     private final SiteRepositoryService siteRepositoryService;
+    private final LRUCache<String, List<SearchItemCached>> cache = new LRUCache<>(3);
     private String query;
+    private int offset;
+    private int limit;
 
     @Autowired
     public SearchServiceImpl(@NotNull ServiceStore serviceStore) {
@@ -39,102 +48,108 @@ public class SearchServiceImpl implements SearchService {
 
     @Override
     public SearchResponse getPages(String query, String site, Integer offset, Integer limit) {
+//        viewLogInfo(query, site, offset, limit);
         long start = System.currentTimeMillis();
+        String key = query + "|" + site;
         setQuery(query);
-        SearchResponse searchResponse = new SearchResponse();
-        viewLogInfo(query, site, offset, limit);
-        Map<String, Integer> queryWords = getLemmaFinder().collectLemmas(query);
-        if (site.equals("all")) {
-            List<SiteEntity> siteEntityList = siteRepositoryService.getSiteByStatus(Status.INDEXED);
-            List<SearchItem> searchItemList = new ArrayList<>();
-            siteEntityList.forEach(siteEntity -> searchItemList.addAll(getPageRank(queryWords.keySet(), siteEntity)));
-            List<SearchItem> searchItemSortedList = getRelevanceAndSort(searchItemList);
-            searchResponse.setResult(true);
-            searchResponse.setCount(searchItemSortedList.size());
-            searchResponse.setData(searchItemSortedList);
-        } else {
-            SiteEntity siteEntity = siteRepositoryService.getSiteEntityByDomain(site.concat("/"));
-            getPageRank(queryWords.keySet(), siteEntity);
-//            getListByQueryBySite(queryWords, site);
+        setOffset(offset);
+        setLimit(limit);
+
+        List<String> queryByWords = getLemmaFinder().collectLemmas(query).keySet().stream().toList();
+        if (cache.keyIsPresent(key)) {
+            return getSearchItemList(offset, limit, cache.get(key), start);
         }
-        log.info("Search completed for " + (System.currentTimeMillis() - start) + " ms");
+        if (site.equals("all")) {
+            return getResultForALlSite(key, queryByWords, start);
+        } else {
+            return getResultByOneSite(key, site, queryByWords, start);
+        }
+    }
+
+    private SearchResponse getResultForALlSite(String key, List<String> queryByWords, long start) {
+        List<SearchItemCached> searchItemCachedList = getSearchItemCachedListByALlSite(queryByWords);
+        if (searchItemCachedList.isEmpty()) {
+            return getEmptyResponse(start);
+        } else {
+            List<SearchItemCached> sortedSearchItemCachedList = getRelevanceAndSort(searchItemCachedList);
+            cache.put(key, sortedSearchItemCachedList);
+            return getSearchItemList(getOffset(), getLimit(), sortedSearchItemCachedList, start);
+        }
+    }
+
+    private SearchResponse getResultByOneSite(String key, @NotNull String site, List<String> queryByWords, long start) {
+        SiteEntity siteEntity = siteRepositoryService.getSiteEntityByDomain(site);
+        QueryCallableBySite queryCallableBySite = new QueryCallableBySite(queryByWords, siteEntity, this);
+        List<SearchItemCached> searchItemCachedList = queryCallableBySite.call();
+        if (searchItemCachedList.isEmpty()) {
+            return getEmptyResponse(start);
+        } else {
+            List<SearchItemCached> sortedSearchItemCachedList = getRelevanceAndSort(searchItemCachedList);
+            cache.put(key, sortedSearchItemCachedList);
+            return getSearchItemList(getOffset(), getLimit(), sortedSearchItemCachedList, start);
+        }
+    }
+
+    private @NotNull SearchResponse getEmptyResponse(long start) {
+        SearchResponse searchResponse = new SearchResponse();
+        searchResponse.setData(Collections.emptyList());
+        searchResponse.setCount(0L);
+        searchResponse.setResult(true);
+        log.info("searchResponse completed for " + (System.currentTimeMillis() - start) + " ms");
         return searchResponse;
     }
 
-    private @NotNull List<SearchItem> getPageRank(@NotNull Set<String> queryWords, SiteEntity siteEntity) {
-        Set<LemmaEntityStats> lemmaEntityStatsSet = new TreeSet<>(Comparator.comparing(LemmaEntityStats::getPercent));
-        queryWords.forEach(query -> {
-            long pageCountBySite = pageRepositoryService.getCountPageBySite(siteEntity);
-            LemmaEntity lemmaEntity = lemmaRepositoryService.getLemmaEntity(query, siteEntity);
-            if (lemmaEntity != null) {
-                float percent = ((float) lemmaEntity.getFrequency() / (float) pageCountBySite) * 100;
-                if (percent < PERCENT_ACCEPT) {
-                    lemmaEntityStatsSet.add(new LemmaEntityStats(lemmaEntity, percent));
-                }
+    private @NotNull List<SearchItemCached> getSearchItemCachedListByALlSite(List<String> queryByWords) {
+        ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        List<SiteEntity> siteEntityList = siteRepositoryService.getSiteByStatus(Status.INDEXED);
+        List<Future<List<SearchItemCached>>> futureList = new ArrayList<>();
+        siteEntityList.forEach(siteEntity -> {
+            QueryCallableBySite queryCallable = new QueryCallableBySite(queryByWords, siteEntity, this);
+            Future<List<SearchItemCached>> future = executor.submit(queryCallable);
+            futureList.add(future);
+        });
+        executor.shutdown();
+        List<SearchItemCached> searchItemCachedList = new ArrayList<>();
+        futureList.forEach(future -> {
+            try {
+                searchItemCachedList.addAll(future.get());
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
             }
         });
-        List<PageEntity> pageEntityList = getListPageEntityByQuery(lemmaEntityStatsSet);
-        return setPageRank(pageEntityList, lemmaEntityStatsSet);
+        return searchItemCachedList;
     }
 
-    private @NotNull List<PageEntity> getListPageEntityByQuery(@NotNull Set<LemmaEntityStats> lemmaEntityStatsSet) {
-        List<PageEntity> finalPageEntityList = new ArrayList<>();
-        for (LemmaEntityStats lemmaEntityStats : lemmaEntityStatsSet) {
-            List<PageEntity> pageEntityList = pageEntityList(lemmaEntityStats.getLemmaEntity());
-            if (finalPageEntityList.isEmpty()) {
-                finalPageEntityList.addAll(pageEntityList);
-            } else {
-                finalPageEntityList.retainAll(pageEntityList);
-            }
-            if (finalPageEntityList.isEmpty()) {
-                return finalPageEntityList;
-            }
-        }
-        return finalPageEntityList;
-    }
-
-    private List<PageEntity> pageEntityList(@NotNull LemmaEntity lemmaEntity) {
-        return lemmaEntity.getIndexLemmaEntities()
-                .stream()
-                .parallel()
-                .unordered()
-                .map(IndexEntity::getPage)
-                .toList();
-    }
-
-    private @NotNull List<SearchItem> setPageRank(@NotNull List<PageEntity> pageEntityList, Set<LemmaEntityStats> lemmaEntityStatsSet) {
-        SearchItemCreator searchItemCreator = new SearchItemCreator();
-        List<SearchItem> searchItemList = new ArrayList<>();
-        pageEntityList.forEach(pageEntity -> {
-            SearchItem searchItem = new SearchItem();
-            SearchItem finalSearchItem = searchItem;
-            lemmaEntityStatsSet.forEach(lemmaEntityStats -> {
-                float lemmaRank = indexRepositoryService.getIndexEntity(lemmaEntityStats.getLemmaEntity(), pageEntity).getLemmaRank();
-                finalSearchItem.setAbsoluteRelevance(finalSearchItem.getAbsoluteRelevance() + lemmaRank);
-            });
-            searchItem = searchItemCreator.createSearchItem(pageEntity, searchItem, getQuery());
-            searchItemList.add(searchItem);
-        });
-        return searchItemList;
-    }
-
-    private @NotNull List<SearchItem> getRelevanceAndSort(@NotNull List<SearchItem> searchItemList) {
-        SearchItem maxAbsRelevance = Collections.max(searchItemList, Comparator.comparing(SearchItem::getAbsoluteRelevance));
-        List<SearchItem> searchItemSortedList = new ArrayList<>(searchItemList.stream()
-                .parallel()
-                .unordered()
-                .peek(searchItem -> searchItem.setRelevance(searchItem.getAbsoluteRelevance() / maxAbsRelevance.getAbsoluteRelevance()))
+    private @NotNull List<SearchItemCached> getRelevanceAndSort(@NotNull List<SearchItemCached> searchItemCachedList) {
+        float maxAbsRelevance = Collections.max(searchItemCachedList, Comparator.comparing(SearchItemCached::getAbsoluteRelevance)).getAbsoluteRelevance();
+        return new ArrayList<>(searchItemCachedList.parallelStream()
+                .peek(searchItemCached -> searchItemCached.setRelevance(searchItemCached.getAbsoluteRelevance() / maxAbsRelevance))
+                .sorted(Comparator.comparing(SearchItemCached::getAbsoluteRelevance).reversed())
                 .toList());
-        searchItemSortedList.sort(Comparator.comparing(SearchItem::getAbsoluteRelevance).reversed());
-        System.out.println("after sorting");
-        System.out.println("-------------");
-        searchItemSortedList.forEach(searchItem -> System.out.println(searchItem.getUri() + "\n"
-                + "MaxRelevance: " + searchItem.getRelevance() + "\n"
-                + "absRelevance: " + searchItem.getAbsoluteRelevance() + "\n"
-                + searchItem.getTitle() + "\n"
-                + searchItem.getSnippet() + "\n"
-                + "-------------------------------------------"));
-        return searchItemList;
+    }
+
+    private @NotNull SearchResponse getSearchItemList(int offset, int limit, List<SearchItemCached> searchItemCachedList, long start) {
+        SearchItemCreator searchItemCreator = new SearchItemCreator(pageRepositoryService);
+        Page<SearchItemCached> searchItemCachedPage = createPageSearchItems(offset, limit, searchItemCachedList);
+        List<SearchItem> searchItemList = searchItemCreator.createSearchItem(searchItemCachedPage, getQuery());
+        SearchResponse searchResponse = new SearchResponse();
+        searchResponse.setResult(true);
+        searchResponse.setData(searchItemList);
+        searchResponse.setCount(searchItemCachedPage.getTotalElements());
+        log.info("searchResponse completed for " + (System.currentTimeMillis() - start) + " ms");
+        return searchResponse;
+    }
+
+    public Page<SearchItemCached> createPageSearchItems(int offset, int limit, @NotNull List<SearchItemCached> searchItemCachedList) {
+        List<SearchItemCached> pageSearchItems;
+        int page = offset / limit;
+        if (searchItemCachedList.size() < offset) {
+            pageSearchItems = Collections.emptyList();
+        } else {
+            int toIndex = Math.min(offset + limit, searchItemCachedList.size());
+            pageSearchItems = searchItemCachedList.subList(offset, toIndex);
+        }
+        return new PageImpl<>(pageSearchItems, PageRequest.of(page, limit), searchItemCachedList.size());
     }
 
 
@@ -145,10 +160,6 @@ public class SearchServiceImpl implements SearchService {
         queryWords.forEach(System.out::println);
         System.out.println("----------------------------");
 
-    }
-
-    private void setQuery(String query) {
-        this.query = query;
     }
 
     private @NotNull String getQuery() {

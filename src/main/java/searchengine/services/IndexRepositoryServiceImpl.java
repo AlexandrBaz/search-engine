@@ -57,7 +57,7 @@ public class IndexRepositoryServiceImpl implements IndexRepositoryService{
     }
 
     @Override
-    public IndexEntity getIndexEntity(LemmaEntity lemmaEntity, PageEntity pageEntity) {
+    public synchronized IndexEntity getIndexEntity(LemmaEntity lemmaEntity, PageEntity pageEntity) {
         return indexRepository.findByLemmaAndPage(lemmaEntity,pageEntity).orElse(null);
     }
 

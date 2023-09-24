@@ -35,4 +35,6 @@ public interface PageRepositoryService {
     int getCountPageBySite(SiteEntity siteEntity);
 
     void savePageEntityMap(ConcurrentHashMap<String, PageEntity> pageEntityMap);
+
+    PageEntity getPageEntityByID(long pageId);
 }
