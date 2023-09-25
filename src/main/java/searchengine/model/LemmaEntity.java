@@ -34,16 +34,6 @@ public class LemmaEntity {
     @OneToMany(mappedBy = "lemma", targetEntity = IndexEntity.class)
     private List<IndexEntity> indexLemmaEntities = new ArrayList<>();
 
-    public void addIndex(IndexEntity indexEntity) {
-        indexLemmaEntities.add(indexEntity);
-        indexEntity.setLemma(this);
-    }
-
-    public void removeIndex(IndexEntity indexEntity) {
-        indexLemmaEntities.remove(indexEntity);
-        indexEntity.setLemma(null);
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

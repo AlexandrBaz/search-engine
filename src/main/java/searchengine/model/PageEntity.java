@@ -1,9 +1,10 @@
 package searchengine.model;
 
-import lombok.*;
-
 import jakarta.persistence.*;
-import org.hibernate.annotations.GenericGenerator;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
@@ -19,21 +20,6 @@ import java.util.Objects;
 @NoArgsConstructor
 public class PageEntity {
     @Id
-//    @GenericGenerator(
-//            name = "sequenceGenerator",
-////            type = "enhanced-sequence",
-//            type = org.hibernate.id.enhanced.SequenceStyleGenerator.class,
-//            parameters = {
-//                    @org.hibernate.annotations.Parameter(name = "sequence_name", value = "hibernate_sequence"),
-//                    @org.hibernate.annotations.Parameter(name = "optimizer", value = "pooled"),
-//                    @org.hibernate.annotations.Parameter(name = "initial_value", value = "1"),
-//                    @org.hibernate.annotations.Parameter(name = "increment_size", value = "50")
-//            }
-//    )
-//    @GeneratedValue(
-//            strategy = GenerationType.SEQUENCE,
-//            generator = "sequenceGenerator"
-//    )
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(nullable = false, unique = true)
     private Long Id;
@@ -46,23 +32,12 @@ public class PageEntity {
     @Column(columnDefinition = "INT", nullable = false)
     private Integer code;
 
-//    @Column(length = 999999, name = "content", nullable = true)
-    @Column(length = 16777215, columnDefinition = "mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci", name = "content", nullable = true)
+    @Column(length = 16777215, columnDefinition = "mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci", name = "content")
     private String content;
 
     @OnDelete(action = OnDeleteAction.CASCADE)
     @OneToMany(mappedBy = "page", targetEntity = IndexEntity.class)
     private List<IndexEntity> indexPageEntities = new ArrayList<>();
-
-    public void addIndex(IndexEntity indexEntity) {
-        indexPageEntities.add(indexEntity);
-        indexEntity.setPage(this);
-    }
-
-    public void removeIndex(IndexEntity indexEntity) {
-        indexPageEntities.remove(indexEntity);
-        indexEntity.setPage(null);
-    }
 
     @Override
     public boolean equals(Object o) {

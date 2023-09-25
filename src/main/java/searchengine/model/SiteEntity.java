@@ -41,26 +41,6 @@ public class SiteEntity  {
     @OneToMany(mappedBy = "site", targetEntity = PageEntity.class)
     private List<LemmaEntity> lemmaEntities = new ArrayList<>();
 
-    public void addPage(PageEntity pageEntity) {
-        pageEntities.add(pageEntity);
-        pageEntity.setSite(this);
-    }
-
-    public void removePage(PageEntity pageEntity) {
-        pageEntities.remove(pageEntity);
-        pageEntity.setSite(null);
-    }
-
-    public void addLemma(LemmaEntity lemmaEntity) {
-        lemmaEntities.add(lemmaEntity);
-        lemmaEntity.setSite(this);
-    }
-
-    public void removeLemma(LemmaEntity lemmaEntity) {
-        lemmaEntities.remove(lemmaEntity);
-        lemmaEntity.setSite(null);
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
