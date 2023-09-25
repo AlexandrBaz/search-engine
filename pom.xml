@@ -51,21 +51,6 @@
             <version>8.0.33</version>
         </dependency>
 
-
-<!--        <dependency>-->
-<!--            <groupId>org.postgresql</groupId>-->
-<!--            <artifactId>postgresql</artifactId>-->
-<!--            <scope>runtime</scope>-->
-<!--        </dependency>-->
-
-        <!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-data-redis -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-            <version>3.1.2</version>
-        </dependency>
-
-
         <!-- https://mvnrepository.com/artifact/org.jsoup/jsoup -->
         <dependency>
             <groupId>org.jsoup</groupId>
@@ -73,12 +58,12 @@
             <version>1.15.4</version>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/org.springframework.batch/spring-batch-core -->
-        <dependency>
-            <groupId>org.springframework.batch</groupId>
-            <artifactId>spring-batch-core</artifactId>
-            <version>5.0.3</version>
-        </dependency>
+<!--        &lt;!&ndash; https://mvnrepository.com/artifact/org.springframework.batch/spring-batch-core &ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>org.springframework.batch</groupId>-->
+<!--            <artifactId>spring-batch-core</artifactId>-->
+<!--            <version>5.0.3</version>-->
+<!--        </dependency>-->
 
 
         <dependency>
