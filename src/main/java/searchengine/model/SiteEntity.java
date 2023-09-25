@@ -66,7 +66,9 @@ public class SiteEntity  {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         SiteEntity that = (SiteEntity) o;
-        return Id.equals(that.Id) && status == that.status && statusTime.equals(that.statusTime) && lastError.equals(that.lastError) && url.equals(that.url) && name.equals(that.name) && pageEntities.equals(that.pageEntities) && lemmaEntities.equals(that.lemmaEntities);
+        return Id.equals(that.Id) && status == that.status && statusTime.equals(that.statusTime) &&
+//                lastError.equals(that.lastError) &&
+                url.equals(that.url) && name.equals(that.name) && pageEntities.equals(that.pageEntities) && lemmaEntities.equals(that.lemmaEntities);
     }
 
     @Override
