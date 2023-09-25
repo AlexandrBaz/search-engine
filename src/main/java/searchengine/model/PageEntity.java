@@ -19,21 +19,6 @@ import java.util.Objects;
 @NoArgsConstructor
 public class PageEntity {
     @Id
-//    @GenericGenerator(
-//            name = "sequenceGenerator",
-////            type = "enhanced-sequence",
-//            type = org.hibernate.id.enhanced.SequenceStyleGenerator.class,
-//            parameters = {
-//                    @org.hibernate.annotations.Parameter(name = "sequence_name", value = "hibernate_sequence"),
-//                    @org.hibernate.annotations.Parameter(name = "optimizer", value = "pooled"),
-//                    @org.hibernate.annotations.Parameter(name = "initial_value", value = "1"),
-//                    @org.hibernate.annotations.Parameter(name = "increment_size", value = "50")
-//            }
-//    )
-//    @GeneratedValue(
-//            strategy = GenerationType.SEQUENCE,
-//            generator = "sequenceGenerator"
-//    )
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(nullable = false, unique = true)
     private Long Id;
