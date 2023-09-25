@@ -144,7 +144,7 @@ public class SiteParserBatch extends RecursiveAction {
 
     private void checkAndWrite(@NotNull ConcurrentHashMap<String, PageEntity> pageEntityMap, SiteEntity siteEntity) {
         if (pageEntityMap.size() == BATCH_PARSE) {
-            log.info("Write batch toDB: total uniqUrl -> " + uniqUrl.size() + " for domain" + siteEntity.getName());
+            log.info("Write batch toDB: total uniqUrl -> " + uniqUrl.size() + " for domain -> " + siteEntity.getName());
             List<PageEntity> pageEntityList = new ArrayList<>(pageEntityMap.values().stream().toList());
             pageEntityMap.clear();
             siteRunnable.getPageRepositoryService().addListPageEntity(pageEntityList);
