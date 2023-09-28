@@ -27,43 +27,42 @@ spring:
 indexing-settings:
   sites:
 
-#    - url: https://nopaper.ru/
-#      name: https://nopaper.ru/
 #    - url: https://radiomv.ru/
 #      name: https://radiomv.ru/
     - url: https://et-cetera.ru/mobile/
-      name: et-cetera.ru
+      name: et-cetera mobail
     - url: https://dombulgakova.ru/
-      name: https://dombulgakova.ru/
+      name: dombulgakova
     - url: https://playback.ru/
-      name: https://playback.ru/
-#    - url: https://skillbox.ru/
-#      name: https://skillbox.ru/
+      name: playback
+    - url: https://www.svetlovka.ru/
+      name: svetlovka
 
 
 jsoup-setting:
-  jsoup:
-    useragent: Mozilla/5.0 (Windows; U; Windows NT 6.1; ru-RU) AppleWebKit/534.16 (KHTML, like Gecko) Chrome/10.0.648.11 Safari/534.16
-    referrer: https://www:google.com
-    timeout: 20000
-    ignoreHttpErrors: true
-    followRedirects: false
-    sleep: 500
+  useragent: Mozilla/5.0 (Windows; U; Windows NT 6.1; ru-RU) AppleWebKit/534.16 (KHTML, like Gecko) Chrome/10.0.648.11 Safari/534.16
 
-media:
-  regex: (.*/)*.+\\.(png|jpg|gif|bmp|jpeg|PNG|JPG|GIF|BMP|pdf|php|zip)$|[?|#]
+  timeout: 100000
+  ignoreHttpErrors: true
+  sleep: 500
 
-index-batch : 100
+url:
+  mediaRegex: '(.*/)*.+\\.(png|jpg|gif|bmp|jpeg|PNG|JPG|GIF|BMP|pdf|php|zip)$|[?|#]'
+  ignoreStatusCode: '[45]\d{2}'
 
 batch:
-  parse: 100
+  parse: 200
   lemma: 100
-  index: 20
-  index-write: 2000
+  index: 100
+  indexWrite: 200000
 
 search:
   percentAccept: 80
   lruSize: 20
+
+lemma:
+  wordType: '\W\w&&[^А-Яа-яёЁ\s]'
+  particlesNames: МЕЖД, ПРЕДЛ, СОЮЗ, ЧАСТ, МС, МС-П, ВВОДН
 
 snippet:
   maxLength: 250
