@@ -9,9 +9,9 @@ import searchengine.dto.index.Response;
 import searchengine.dto.index.TrueResponse;
 import searchengine.dto.search.SearchResponse;
 import searchengine.dto.statistics.StatisticsResponse;
-import searchengine.services.indexServices.IndexService;
-import searchengine.services.searchServices.SearchService;
-import searchengine.services.statisticServices.StatisticsService;
+import searchengine.services.indexservices.IndexService;
+import searchengine.services.searchservices.SearchService;
+import searchengine.services.statisticservices.StatisticsService;
 
 
 @RestController
