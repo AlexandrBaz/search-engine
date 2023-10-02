@@ -10,6 +10,7 @@ import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -117,7 +118,9 @@ public class SiteParser extends RecursiveAction {
                 Elements elements = document.select("a[href]");
                 urlList = elements.stream().map(absUrl -> absUrl.attr("abs:href")).toList();
             } catch (IOException e) {
-                siteRunnable.getSiteRepositoryService().setParseError(siteRunnable.getSiteEntity(), e.getMessage());
+                SiteEntity siteEntity = siteRunnable.getSiteEntity();
+                siteEntity.setLastError(e.getMessage());
+                siteRunnable.getSiteRepository().save(siteEntity);
                 throw new RuntimeException(e);
             }
         }
@@ -148,13 +151,14 @@ public class SiteParser extends RecursiveAction {
         checkAndWrite(pageEntityMap, siteEntity);
     }
 
-    private void checkAndWrite(@NotNull Map<String, PageEntity> pageEntityMap, SiteEntity siteEntity) {
+    private synchronized void checkAndWrite(@NotNull Map<String, PageEntity> pageEntityMap, SiteEntity siteEntity) {
         if (pageEntityMap.size() == parseBatchSize) {
             log.info("Write to DB: total uniqUrl -> {} for domain -> {}",uniqUrl.size(), siteEntity.getName());
             List<PageEntity> pageEntityList = new ArrayList<>(pageEntityMap.values().stream().toList());
             pageEntityMap.clear();
-            siteRunnable.getPageRepositoryService().addListPageEntity(pageEntityList);
-            siteRunnable.getSiteRepositoryService().updateSite(siteEntity);
+            siteRunnable.getPageRepository().saveAllAndFlush(pageEntityList);
+            siteEntity.setStatusTime(LocalDateTime.now());
+            siteRunnable.getSiteRepository().save(siteEntity);
             pageEntityList.clear();
         }
     }

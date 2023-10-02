@@ -11,7 +11,7 @@ import searchengine.dto.search.SearchItem;
 import searchengine.dto.search.SearchItemCached;
 import searchengine.dto.search.SnippetRank;
 import searchengine.model.PageEntity;
-import searchengine.services.reposervices.PageRepositoryService;
+import searchengine.repositories.PageRepository;
 
 import java.text.BreakIterator;
 import java.util.*;
@@ -29,17 +29,17 @@ public class SearchItemCreator {
     private int CHARS_BEFORE_QUERY_WORD;
     @Value(value = "${snippet.countWordsAfterCutting}")
     private int COUNT_WORDS_BEFORE_QUERY_WORD_AFTER_CUTTING;
-    private final PageRepositoryService pageRepositoryService;
+    private final PageRepository pageRepository;
 
     @Autowired
-    public SearchItemCreator(PageRepositoryService pageRepositoryService) {
-        this.pageRepositoryService = pageRepositoryService;
+    public SearchItemCreator(PageRepository pageRepository) {
+        this.pageRepository = pageRepository;
     }
 
     public List<SearchItem> createSearchItem(@NotNull Page<SearchItemCached> searchItemCachedPage, String query) {
         List<SearchItem> searchItemList = new ArrayList<>();
         searchItemCachedPage.forEach(searchItemCached -> {
-            PageEntity pageEntity = pageRepositoryService.getPageEntityByID(searchItemCached.getPageId());
+            PageEntity pageEntity = pageRepository.getReferenceById(searchItemCached.getPageId());
             SearchItem searchItem = new SearchItem();
             List<String> listWordsOfQuery = new ArrayList<>(Arrays.asList(query.split("\\s")));
             searchItem.setSite(pageEntity.getSite().getUrl().substring(0, pageEntity.getSite().getUrl().length() - 2));

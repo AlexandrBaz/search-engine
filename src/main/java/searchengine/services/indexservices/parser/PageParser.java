@@ -14,16 +14,17 @@ import searchengine.model.IndexEntity;
 import searchengine.model.LemmaEntity;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
-import searchengine.services.reposervices.IndexRepositoryService;
-import searchengine.services.reposervices.LemmaRepositoryService;
-import searchengine.services.reposervices.PageRepositoryService;
-import searchengine.services.reposervices.SiteRepositoryService;
+import searchengine.repositories.IndexRepository;
+import searchengine.repositories.LemmaRepository;
+import searchengine.repositories.PageRepository;
+import searchengine.repositories.SiteRepository;
 import searchengine.services.indexservices.lemma.LemmaFinder;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 
@@ -35,37 +36,37 @@ public class PageParser {
     private String url;
     private String domain;
     private String path;
-    private final SiteRepositoryService siteRepositoryService;
-    private final PageRepositoryService pageRepositoryService;
-    private final LemmaRepositoryService lemmaRepositoryService;
-    private final IndexRepositoryService indexRepositoryService;
+    private final SiteRepository siteRepository;
+    private final PageRepository pageRepository;
+    private final LemmaRepository lemmaRepository;
+    private final IndexRepository indexRepository;
     private final LemmaFinder lemmaFinder;
     private final AppConfig appConfig;
 
     @Autowired
-    public PageParser(SiteRepositoryService siteRepositoryService, PageRepositoryService pageRepositoryService,
-                      LemmaRepositoryService lemmaRepositoryService, IndexRepositoryService indexRepositoryService,
+    public PageParser(SiteRepository siteRepository, PageRepository pageRepository,
+                      LemmaRepository lemmaRepository, IndexRepository indexRepository,
                       LemmaFinder lemmaFinder, AppConfig appConfig) {
-        this.siteRepositoryService = siteRepositoryService;
-        this.pageRepositoryService = pageRepositoryService;
-        this.lemmaRepositoryService = lemmaRepositoryService;
-        this.indexRepositoryService = indexRepositoryService;
+        this.siteRepository = siteRepository;
+        this.pageRepository = pageRepository;
+        this.lemmaRepository = lemmaRepository;
+        this.indexRepository = indexRepository;
         this.lemmaFinder = lemmaFinder;
         this.appConfig = appConfig;
     }
 
     public void addOrUpdatePage() {
-        SiteEntity siteEntity = siteRepositoryService.getSiteEntityByDomain(domain);
+        SiteEntity siteEntity = siteRepository.findByUrl(domain).orElse(null);
         PageEntity newPageEntity = pageParse(url, siteEntity);
         long start = System.currentTimeMillis();
         if (urlHasCorrectAnswer(newPageEntity)) {
             if (pageIsAlreadyParsed()) {
                 deleteOldDataForThisPageEntity(newPageEntity);
             } else {
-                pageRepositoryService.savePageEntity(newPageEntity);
+               pageRepository.saveAndFlush(newPageEntity);
             }
-            lemmaRepositoryService.addPageLemmaEntityList(getLemmaEntityList(newPageEntity));
-            indexRepositoryService.addIndexEntityList(getIndexEntityList(newPageEntity));
+            addPageLemmaEntityList(getLemmaEntityList(newPageEntity));
+            indexRepository.saveAllAndFlush(getIndexEntityList(newPageEntity));
             log.info("Time elapsed {} ms. Collect lemma for url {}", (System.currentTimeMillis() - start), newPageEntity.getPath());
         }
     }
@@ -91,7 +92,8 @@ public class PageParser {
     }
 
     private boolean pageIsAlreadyParsed() {
-        return pageRepositoryService.pageEntityIsPresent(path, domain);
+        SiteEntity siteEntity = siteRepository.findByUrl(domain).orElse(null);
+        return pageRepository.findByPathAndSite(path, siteEntity).isPresent();
     }
 
     private boolean urlHasCorrectAnswer(@NotNull PageEntity pageEntity) {
@@ -99,16 +101,16 @@ public class PageParser {
     }
 
     private void deleteOldDataForThisPageEntity(@NotNull PageEntity pageEntity) {
-        PageEntity oldPageEntity = pageRepositoryService.getPageEntity(pageEntity.getPath(), pageEntity.getSite());
-        List<IndexEntity> indexEntityList = indexRepositoryService.getListIndexEntity(oldPageEntity);
+        PageEntity oldPageEntity = pageRepository.findByPathAndSite(pageEntity.getPath(), pageEntity.getSite()).orElse(null);
+        List<IndexEntity> indexEntityList = indexRepository.findAllByPage(oldPageEntity);
         if(!indexEntityList.isEmpty()) {
             List<Long> idIndexEntityList = indexEntityList.stream().map(IndexEntity::getId).toList();
             List<Long> idLemmaEntityList = indexEntityList.stream().map(IndexEntity -> IndexEntity.getLemma().getId()).toList();
-            indexRepositoryService.deleteByIdListPageEntity(idIndexEntityList);
-            lemmaRepositoryService.deleteByIdListPageEntity(idLemmaEntityList);
+            indexRepository.deleteAllByIdInBatch(idIndexEntityList);
+            lemmaRepository.deleteAllByIdInBatch(idLemmaEntityList);
         }
-        pageRepositoryService.deletePage(oldPageEntity);
-        pageRepositoryService.savePageEntity(pageEntity);
+        pageRepository.delete(Objects.requireNonNull(oldPageEntity));
+        pageRepository.saveAndFlush(pageEntity);
     }
 
     private @NotNull List<LemmaEntity> getLemmaEntityList(@NotNull PageEntity pageEntity) {
@@ -127,7 +129,7 @@ public class PageParser {
     private @NotNull CopyOnWriteArrayList<IndexEntity> getIndexEntityList(PageEntity pageEntity) {
         CopyOnWriteArrayList<IndexEntity> indexEntityList = new CopyOnWriteArrayList<>();
          lemmaFinder.getAllIndexRankOfPage(pageEntity).forEach((lemma, rank) -> {
-             LemmaEntity lemmaEntity = lemmaRepositoryService.getLemmaEntity(lemma, pageEntity.getSite());
+             LemmaEntity lemmaEntity = lemmaRepository.findByLemmaAndSite(lemma, pageEntity.getSite()).orElse(null);
              IndexEntity indexEntity = new IndexEntity();
              indexEntity.setPage(pageEntity);
              indexEntity.setLemma(lemmaEntity);
@@ -137,13 +139,15 @@ public class PageParser {
         return indexEntityList;
     }
 
-//    private LemmaFinder getLemmaFinder() {
-//        LemmaFinder lemmaFinder;
-//        try {
-//            lemmaFinder = LemmaFinder.getInstance();
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
-//        return lemmaFinder;
-//    }
+    private void addPageLemmaEntityList(@NotNull List<LemmaEntity> lemmaEntityList) {
+        lemmaEntityList.forEach(lemmaEntity -> {
+            LemmaEntity presentedLemma = lemmaRepository.findByLemmaAndSite(lemmaEntity.getLemma(), lemmaEntity.getSite()).orElse(null);
+            if (presentedLemma != null){
+                presentedLemma.setFrequency(presentedLemma.getFrequency() + 1);
+                lemmaRepository.saveAndFlush(presentedLemma);
+            } else {
+                lemmaRepository.saveAndFlush(lemmaEntity);
+            }
+        });
+    }
 }

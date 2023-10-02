@@ -10,9 +10,9 @@ import searchengine.dto.statistics.StatisticsData;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.dto.statistics.TotalStatistics;
 import searchengine.model.SiteEntity;
-import searchengine.services.reposervices.LemmaRepositoryService;
-import searchengine.services.reposervices.PageRepositoryService;
-import searchengine.services.reposervices.SiteRepositoryService;
+import searchengine.repositories.LemmaRepository;
+import searchengine.repositories.PageRepository;
+import searchengine.repositories.SiteRepository;
 
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -21,17 +21,17 @@ import java.util.List;
 @Service
 @Getter
 public final class StatisticsServiceImpl implements StatisticsService {
-    private final SiteRepositoryService siteRepositoryService;
-    private final PageRepositoryService pageRepositoryService;
-    private final LemmaRepositoryService lemmaRepositoryService;
+    private final SiteRepository siteRepository;
+    private final PageRepository pageRepository;
+    private final LemmaRepository lemmaRepository;
     private final SitesList sites;
 
     @Autowired
-    public StatisticsServiceImpl(SiteRepositoryService siteRepositoryService, PageRepositoryService pageRepositoryService,
-                                 LemmaRepositoryService lemmaRepositoryService, SitesList sites) {
-        this.siteRepositoryService = siteRepositoryService;
-        this.pageRepositoryService = pageRepositoryService;
-        this.lemmaRepositoryService = lemmaRepositoryService;
+    public StatisticsServiceImpl(SiteRepository siteRepository, PageRepository pageRepository,
+                                 LemmaRepository lemmaRepository, SitesList sites) {
+        this.siteRepository = siteRepository;
+        this.pageRepository = pageRepository;
+        this.lemmaRepository = lemmaRepository;
         this.sites = sites;
     }
 
@@ -71,16 +71,16 @@ public final class StatisticsServiceImpl implements StatisticsService {
         return response;
     }
 
-    private List<SiteEntity> getAllEntity() {
-        return siteRepositoryService.findAll();
+    private @NotNull List<SiteEntity> getAllEntity() {
+        return siteRepository.findAll();
     }
 
     private int getCountPageBySite(SiteEntity siteEntity) {
-        return pageRepositoryService.getCountPageBySite(siteEntity);
+        return pageRepository.countBySite(siteEntity);
     }
 
     private int getCountLemmaBySite(SiteEntity siteEntity) {
-        return lemmaRepositoryService.getCountLemmaBySite(siteEntity);
+        return lemmaRepository.countBySite(siteEntity);
     }
 
     private String getError(@NotNull SiteEntity siteEntity){

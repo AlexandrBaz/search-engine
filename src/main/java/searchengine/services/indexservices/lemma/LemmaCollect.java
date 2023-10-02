@@ -9,9 +9,9 @@ import searchengine.config.AppConfig;
 import searchengine.model.LemmaEntity;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
+import searchengine.repositories.LemmaRepository;
+import searchengine.repositories.PageRepository;
 import searchengine.services.indexservices.parser.SiteRunnable;
-import searchengine.services.reposervices.LemmaRepositoryService;
-import searchengine.services.reposervices.PageRepositoryService;
 
 import java.util.List;
 import java.util.Map;
@@ -20,26 +20,26 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 @Log4j2
 public class LemmaCollect {
-    private final PageRepositoryService pageRepositoryService;
-    private final LemmaRepositoryService lemmaRepositoryService;
+    private final LemmaRepository lemmaRepository;
+    private final PageRepository pageRepository;
     private final LemmaFinder lemmaFinder;
     private final AppConfig appConfig;
     Map<String, LemmaEntity> mapLemmaEntity = new ConcurrentHashMap<>();
     public LemmaCollect(@NotNull SiteRunnable siteRunnable) {
-        this.lemmaRepositoryService = siteRunnable.getLemmaRepositoryService();
-        this.pageRepositoryService = siteRunnable.getPageRepositoryService();
+        this.lemmaRepository = siteRunnable.getLemmaRepository();
+        this.pageRepository = siteRunnable.getPageRepository();
         this.appConfig = siteRunnable.getAppConfig();
         this.lemmaFinder = siteRunnable.getLemmaFinder();
     }
 
     public void collectMapsLemmas(SiteEntity siteEntity) {
-        Slice<PageEntity> slice = pageRepositoryService.getSliceOfPages(siteEntity, PageRequest.of(0, appConfig.getLemmaSliceSize()));
+        Slice<PageEntity> slice = pageRepository.findAllBySite(siteEntity, PageRequest.of(0, appConfig.getLemmaSliceSize()));
         int count = 0;
         log.info("getting lemma for slice : {} {}", ++count, siteEntity.getName());
         slice.getContent().stream().parallel().forEach(this::setLemma);
         while (slice.hasNext()) {
             log.info("getting lemma for slice : {} {}", ++count, siteEntity.getName());
-            slice = pageRepositoryService.getSliceOfPages(siteEntity, slice.nextPageable());
+            slice = pageRepository.findAllBySite(siteEntity, slice.nextPageable());
             slice.getContent().stream().parallel().forEach(this::setLemma);
         }
         writeToDB(mapLemmaEntity);
@@ -48,7 +48,7 @@ public class LemmaCollect {
     private synchronized void writeToDB(@NotNull Map<String, LemmaEntity> mapLemmaEntity){
         List<LemmaEntity> lemmaEntities = mapLemmaEntity.values().stream().toList();
         mapLemmaEntity.clear();
-        lemmaRepositoryService.addLemmaEntityList(lemmaEntities);
+        lemmaRepository.saveAllAndFlush(lemmaEntities);
     }
 
     private void setLemma(@NotNull PageEntity pageEntity) {

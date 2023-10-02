@@ -12,10 +12,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import searchengine.dto.search.*;
 import searchengine.model.*;
-import searchengine.services.reposervices.IndexRepositoryService;
-import searchengine.services.reposervices.LemmaRepositoryService;
-import searchengine.services.reposervices.PageRepositoryService;
-import searchengine.services.reposervices.SiteRepositoryService;
+import searchengine.repositories.IndexRepository;
+import searchengine.repositories.LemmaRepository;
+import searchengine.repositories.PageRepository;
+import searchengine.repositories.SiteRepository;
 import searchengine.services.indexservices.lemma.LemmaFinder;
 
 import java.util.*;
@@ -28,10 +28,10 @@ public class SearchServiceImpl implements SearchService {
     @Value(value = "${search.percentAccept}")
     private int PERCENT_ACCEPT;
     private final LRUCache<String, List<SearchItemCached>> cache;
-    private final LemmaRepositoryService lemmaRepositoryService;
-    private final IndexRepositoryService indexRepositoryService;
-    private final PageRepositoryService pageRepositoryService;
-    private final SiteRepositoryService siteRepositoryService;
+    private final SiteRepository siteRepository;
+    private final PageRepository pageRepository;
+    private final LemmaRepository lemmaRepository;
+    private final IndexRepository indexRepository;
     private final SearchItemCreator searchItemCreator;
     private final LemmaFinder lemmaFinder;
     private String query;
@@ -40,14 +40,16 @@ public class SearchServiceImpl implements SearchService {
 
     @Autowired
     public SearchServiceImpl(SearchItemCreator searchItemCreator, @Value(value = "${search.lruSize}") int cacheSize,
-                             LemmaRepositoryService lemmaRepositoryService, IndexRepositoryService indexRepositoryService,
-                             PageRepositoryService pageRepositoryService, SiteRepositoryService siteRepositoryService, LemmaFinder lemmaFinder) {
+                             SiteRepository siteRepository, PageRepository pageRepository,
+                             LemmaRepository lemmaRepository, IndexRepository indexRepository,
+                             LemmaFinder lemmaFinder) {
         this.searchItemCreator = searchItemCreator;
         this.cache = new LRUCache<>(cacheSize);
-        this.lemmaRepositoryService = lemmaRepositoryService;
-        this.indexRepositoryService = indexRepositoryService;
-        this.pageRepositoryService = pageRepositoryService;
-        this.siteRepositoryService = siteRepositoryService;
+        this.siteRepository = siteRepository;
+        this.pageRepository = pageRepository;
+        this.lemmaRepository = lemmaRepository;
+        this.indexRepository = indexRepository;
+
         this.lemmaFinder = lemmaFinder;
     }
 
@@ -83,7 +85,7 @@ public class SearchServiceImpl implements SearchService {
     }
 
     private SearchResponse getResultByOneSite(String key, @NotNull String site, List<String> queryByWords, long start) {
-        SiteEntity siteEntity = siteRepositoryService.getSiteEntityByDomain(site);
+        SiteEntity siteEntity = siteRepository.findByUrl(site).orElse(null);
         ItemCachedCreator itemCachedCreator = new ItemCachedCreator(queryByWords, siteEntity, this);
         List<SearchItemCached> searchItemCachedList = itemCachedCreator.getSearchItemCachedList();
         if (searchItemCachedList.isEmpty()) {
@@ -96,7 +98,7 @@ public class SearchServiceImpl implements SearchService {
     }
 
     private @NotNull List<SearchItemCached> getResultByAllSite(List<String> queryByWords) {
-        List<SiteEntity> siteEntityList = siteRepositoryService.getSiteByStatus(Status.INDEXED);
+        List<SiteEntity> siteEntityList = siteRepository.findByStatus(Status.INDEXED);
         List<SearchItemCached> searchItemCachedList = new ArrayList<>();
         siteEntityList.forEach(siteEntity -> {
             ItemCachedCreator itemCachedCreator = new ItemCachedCreator(queryByWords, siteEntity, this);
