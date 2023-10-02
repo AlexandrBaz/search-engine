@@ -59,8 +59,8 @@ public class SearchItemCreator {
     }
 
     private @NotNull String getSnippet(String content, List<String> listWordsOfQuery) {
-        ArrayList<String> bodySentences = getSentences(content);
-        List<SnippetRank> snippetRankList = getSnippetMap(bodySentences, listWordsOfQuery);
+        ArrayList<String> bodySentences = getSentencesFromPageContent(content);
+        List<SnippetRank> snippetRankList = getSnippetMapSortByMaxEntries(bodySentences, listWordsOfQuery);
         List<SnippetRank> sortedSnippets = snippetRankList.stream().parallel().sorted(Comparator.comparing(SnippetRank::getCount).reversed())
                 .toList();
         StringBuilder stringBuilder = new StringBuilder();
@@ -71,12 +71,7 @@ public class SearchItemCreator {
             if (snippedLength <= SNIPPET_MAX_LENGTH) {
                 stringBuilder.append(snippetRank.getSnippet()).append(" ");
             } else {
-                int wordsBeforeWordQuery = getNumWordsBeforeQuery(snippetRank.getSnippet());
-                if (wordsBeforeWordQuery > WORDS_BEFORE_QUERY_WORD) {
-                    stringBuilder.append(getShortSnippet(wordsBeforeWordQuery, snippetRank.getSnippet()));
-                } else {
-                    stringBuilder.append(snippetRank.getSnippet()).append(" ");
-                }
+                checkWordsBeforeWordQueryAndSetSnippet(stringBuilder, snippetRank);
             }
             int checkingLength = stringBuilder.length() - totalSnippetTagsLength;
             if (checkingLength >= SNIPPET_MAX_LENGTH) {
@@ -86,7 +81,29 @@ public class SearchItemCreator {
         return sortedSnippets.get(0).getSnippet();
     }
 
-    private @NotNull ArrayList<String> getSentences(String content) {
+    private void checkWordsBeforeWordQueryAndSetSnippet(StringBuilder stringBuilder, @NotNull SnippetRank snippetRank) {
+        int wordsBeforeWordQuery = getNumWordsBeforeQuery(snippetRank.getSnippet());
+        if (wordsBeforeWordQuery > WORDS_BEFORE_QUERY_WORD) {
+            stringBuilder.append(getShortSnippet(wordsBeforeWordQuery, snippetRank.getSnippet()));
+        } else {
+            stringBuilder.append(snippetRank.getSnippet()).append(" ");
+        }
+    }
+
+    private int getNumWordsBeforeQuery(@NotNull String snippet) {
+        AtomicInteger wordsBefore = new AtomicInteger();
+        String[] snippetToWords = snippet.split("\\s");
+        for (String word : snippetToWords) {
+            if (!word.contains("<b")) {
+                wordsBefore.getAndAdd(1);
+            } else {
+                break;
+            }
+        }
+        return wordsBefore.get();
+    }
+
+    private @NotNull ArrayList<String> getSentencesFromPageContent(String content) {
         Document document = Jsoup.parse(content);
         String body = document.getElementsByTag("body").text();
         ArrayList<String> bodySentences = new ArrayList<>();
@@ -101,7 +118,7 @@ public class SearchItemCreator {
         return bodySentences;
     }
 
-    private List<SnippetRank> getSnippetMap(@NotNull ArrayList<String> bodySentences, List<String> listWordsOfQuery) {
+    private List<SnippetRank> getSnippetMapSortByMaxEntries(@NotNull ArrayList<String> bodySentences, List<String> listWordsOfQuery) {
         return bodySentences.stream().parallel()
                 .map(sentence -> sentenceMarkedUp(sentence, listWordsOfQuery))
                 .sorted(Comparator.comparing(SnippetRank::getCount).reversed())
@@ -139,35 +156,12 @@ public class SearchItemCreator {
         return snippetRank;
     }
 
-    private int getNumWordsBeforeQuery(@NotNull String snippet) {
-        AtomicInteger wordsBefore = new AtomicInteger();
-        String[] snippetToWords = snippet.split("\\s");
-        for (String word : snippetToWords) {
-            if (!word.contains("<b")) {
-                wordsBefore.getAndAdd(1);
-            } else {
-                break;
-            }
-        }
-        return wordsBefore.get();
-    }
-
     private @NotNull String getShortSnippet(int wordsBefore, @NotNull String snippet) {
-        StringBuilder stringBuilder = new StringBuilder();
-        String[] snippetToWords = snippet.split("\\s");
-        int start = 0;
-        for (String word : snippetToWords) {
-            stringBuilder.append(word).append(" ");
-            start++;
-            if (start == wordsBefore) {
-                break;
-            }
-        }
         StringBuilder str = new StringBuilder();
-        if (stringBuilder.toString().length() > CHARS_BEFORE_QUERY_WORD) {
+        if (getNumCharsBeforeQuery(wordsBefore, snippet) > CHARS_BEFORE_QUERY_WORD) {
             int startShortSnippet = wordsBefore - COUNT_WORDS_BEFORE_QUERY_WORD_AFTER_CUTTING;
             int snippetStart = 0;
-            for (String word : snippetToWords) {
+            for (String word : snippet.split("\\s")) {
                 if (snippetStart >= startShortSnippet) {
                     str.append(word).append(" ");
                 }
@@ -175,5 +169,18 @@ public class SearchItemCreator {
             }
         }
         return str.toString();
+    }
+
+    private int getNumCharsBeforeQuery(int wordsBefore, @NotNull String snippet) {
+        StringBuilder stringBuilder = new StringBuilder();
+        int start = 0;
+        for (String word : snippet.split("\\s")) {
+            stringBuilder.append(word).append(" ");
+            start++;
+            if (start == wordsBefore) {
+                break;
+            }
+        }
+        return stringBuilder.toString().length();
     }
 }
