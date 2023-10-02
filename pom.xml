@@ -58,14 +58,6 @@
             <version>1.15.4</version>
         </dependency>
 
-<!--        &lt;!&ndash; https://mvnrepository.com/artifact/org.springframework.batch/spring-batch-core &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.batch</groupId>-->
-<!--            <artifactId>spring-batch-core</artifactId>-->
-<!--            <version>5.0.3</version>-->
-<!--        </dependency>-->
-
-
         <dependency>
             <groupId>org.apache.lucene.morphology</groupId>
             <artifactId>morph</artifactId>

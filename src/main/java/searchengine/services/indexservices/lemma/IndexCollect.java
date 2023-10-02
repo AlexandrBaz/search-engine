@@ -11,10 +11,10 @@ import searchengine.model.IndexEntity;
 import searchengine.model.LemmaEntity;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
+import searchengine.repositories.IndexRepository;
+import searchengine.repositories.LemmaRepository;
+import searchengine.repositories.PageRepository;
 import searchengine.services.indexservices.parser.SiteRunnable;
-import searchengine.services.reposervices.IndexRepositoryService;
-import searchengine.services.reposervices.LemmaRepositoryService;
-import searchengine.services.reposervices.PageRepositoryService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,9 +24,9 @@ import java.util.Map;
 @Getter
 @Log4j2
 public class IndexCollect {
-    private final LemmaRepositoryService lemmaRepositoryService;
-    private final PageRepositoryService pageRepositoryService;
-    private final IndexRepositoryService indexRepositoryService;
+    private final PageRepository pageRepository;
+    private final LemmaRepository lemmaRepository;
+    private final IndexRepository indexRepository;
     private final LemmaFinder lemmaFinder;
     private final List<IndexEntity> indexEntityList = new ArrayList<>();
     private final SiteEntity siteEntity;
@@ -35,15 +35,15 @@ public class IndexCollect {
     public IndexCollect(@NotNull SiteRunnable siteRunnable) {
         this.siteEntity = siteRunnable.getSiteEntity();
         this.appConfig = siteRunnable.getAppConfig();
-        this.pageRepositoryService = siteRunnable.getPageRepositoryService();
-        this.lemmaRepositoryService = siteRunnable.getLemmaRepositoryService();
-        this.indexRepositoryService = siteRunnable.getIndexRepositoryService();
+        this.pageRepository = siteRunnable.getPageRepository();
+        this.lemmaRepository = siteRunnable.getLemmaRepository();
+        this.indexRepository = siteRunnable.getIndexRepository();
         this.lemmaFinder = siteRunnable.getLemmaFinder();
     }
 
     public void lemmaRankBySite() {
-        List<LemmaEntity> lemmaEntityList = lemmaRepositoryService.getAllLemmaEntityBySiteEntity(siteEntity);
-        Slice<PageEntity> slice = pageRepositoryService.getSliceOfPages(siteEntity, PageRequest.of(0, appConfig.getIndexSliceSize()));
+        List<LemmaEntity> lemmaEntityList = lemmaRepository.findAllBySite(siteEntity);
+        Slice<PageEntity> slice = pageRepository.findAllBySite(siteEntity, PageRequest.of(0, appConfig.getIndexSliceSize()));
         int count = 0;
         log.info("getting index for slice : {} {}", ++count, siteEntity.getName());
         slice.getContent().stream().parallel()
@@ -53,14 +53,14 @@ public class IndexCollect {
                 });
         while (slice.hasNext()) {
             log.info("getting index for slice : {} {}", ++count, siteEntity.getName());
-            slice = pageRepositoryService.getSliceOfPages(siteEntity, slice.nextPageable());
+            slice = pageRepository.findAllBySite(siteEntity, slice.nextPageable());
             slice.getContent().stream().parallel()
                     .forEach(pageEntity -> {
                         Map<String, Float> lemmaRankFromPage = lemmaFinder.getAllIndexRankOfPage(pageEntity);
                         collectIndexLemma(lemmaRankFromPage, pageEntity, lemmaEntityList);
                     });
         }
-        indexRepositoryService.addIndexEntityList(indexEntityList);
+        indexRepository.saveAllAndFlush(indexEntityList);
     }
 
     private void collectIndexLemma(@NotNull Map<String, Float> partIndexLemma,
@@ -86,9 +86,9 @@ public class IndexCollect {
             long start = System.currentTimeMillis();
             List<IndexEntity> writeIndexEntityList = new ArrayList<>(indexEntityList);
             indexEntityList.clear();
-            indexRepositoryService.addIndexEntityList(writeIndexEntityList);
+            indexRepository.saveAllAndFlush(writeIndexEntityList);
+            log.info("Total time write to DB {}, {} ms", writeIndexEntityList.size(), (System.currentTimeMillis() - start));
             writeIndexEntityList.clear();
-            log.info("Total time write to DB {}, {} ms", indexEntityList.size(), (System.currentTimeMillis() - start));
         }
     }
 

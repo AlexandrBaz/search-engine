@@ -32,8 +32,8 @@ public class ItemCachedCreator {
     private @NotNull Set<LemmaEntityRank> getSearchQueryRankByWord() {
         Set<LemmaEntityRank> lemmaEntityRanks = new TreeSet<>(Comparator.comparing(LemmaEntityRank::getPercent));
         queryByWords.forEach(wordOfQuery ->{
-            long totalPageBySite = searchService.getPageRepositoryService().getCountPageBySite(siteEntity);
-            LemmaEntity lemmaEntity = searchService.getLemmaRepositoryService().getLemmaEntity(wordOfQuery,siteEntity);
+            long totalPageBySite = searchService.getPageRepository().countBySite(siteEntity);
+            LemmaEntity lemmaEntity = searchService.getLemmaRepository().findByLemmaAndSite(wordOfQuery,siteEntity).orElse(null);
             if (lemmaEntity != null) {
                 float percent = ((float) lemmaEntity.getFrequency() / (float) totalPageBySite) * 100;
                 if (percent < searchService.getPERCENT_ACCEPT()) {
@@ -69,7 +69,7 @@ public class ItemCachedCreator {
         totalPageEntityListByQuery.parallelStream().forEach(pageEntity -> {
             SearchItemCached searchItemCached = new SearchItemCached();
             lemmaEntityRanks.parallelStream().forEach(lemmaEntityRank -> {
-                IndexEntity indexEntity = searchService.getIndexRepositoryService().getIndexEntity(lemmaEntityRank.getLemmaEntity(), pageEntity);
+                IndexEntity indexEntity = searchService.getIndexRepository().findByLemmaAndPage(lemmaEntityRank.getLemmaEntity(), pageEntity).orElse(null);
                 if (indexEntity != null) {
                     float lemmaRank = indexEntity.getLemmaRank();
                     searchItemCached.setAbsoluteRelevance(searchItemCached.getAbsoluteRelevance() + lemmaRank);

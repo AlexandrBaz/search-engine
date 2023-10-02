@@ -7,8 +7,8 @@ import org.springframework.stereotype.Repository;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
 
+import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 @Repository
 public interface PageRepository extends JpaRepository<PageEntity, Long> {
@@ -19,5 +19,5 @@ public interface PageRepository extends JpaRepository<PageEntity, Long> {
 
     int countBySite(SiteEntity siteEntity);
 
-    Stream<PageEntity> findAllBySite(SiteEntity siteEntity);
+    List<PageEntity> findAllBySite(SiteEntity siteEntity);
 }

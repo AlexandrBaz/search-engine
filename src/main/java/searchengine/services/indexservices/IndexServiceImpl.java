@@ -5,22 +5,25 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
+import searchengine.model.SiteEntity;
+import searchengine.model.Status;
+import searchengine.repositories.SiteRepository;
 import searchengine.services.indexservices.parser.Parser;
-import searchengine.services.reposervices.SiteRepositoryService;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 public class IndexServiceImpl implements IndexService {
     private final SitesList sitesList;
     private final IndexServiceAsync indexServiceAsync;
-    private final SiteRepositoryService siteRepositoryService;
+    private final SiteRepository siteRepository;
 
     @Autowired
-    public IndexServiceImpl(SitesList sitesList, IndexServiceAsync indexServiceAsync, SiteRepositoryService siteRepositoryService) {
+    public IndexServiceImpl(SitesList sitesList, IndexServiceAsync indexServiceAsync, SiteRepository siteRepository) {
         this.sitesList = sitesList;
         this.indexServiceAsync = indexServiceAsync;
-        this.siteRepositoryService = siteRepositoryService;
+        this.siteRepository = siteRepository;
     }
 
     @Override
@@ -40,13 +43,23 @@ public class IndexServiceImpl implements IndexService {
             parserList.forEach(handler -> {
                 handler.getWorker().stopForkJoin();
                 if (!handler.getFuture().isDone()) {
-                    siteRepositoryService.stopIndexingThisEntity(handler.getDomain());
+                    stopIndexingThisEntity(handler.getDomain());
                 }
             });
             indexServiceAsync.getExecutor().shutdownNow();
             return true;
         } else {
             return false;
+        }
+    }
+
+    private void stopIndexingThisEntity(String domain) {
+        SiteEntity siteEntity = siteRepository.findByUrl(domain).orElse(null);
+        if (siteEntity != null) {
+            siteEntity.setLastError("Индексация остановлена пользователем");
+            siteEntity.setStatusTime(LocalDateTime.now());
+            siteEntity.setStatus(Status.FAILED);
+            siteRepository.saveAndFlush(siteEntity);
         }
     }
 
